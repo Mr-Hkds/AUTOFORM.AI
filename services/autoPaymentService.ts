@@ -88,16 +88,22 @@ export const creditTokensAutomatically = async (
 
 /**
  * Log payment transaction to Firestore
+ * Uses paymentId as document ID to ensure idempotency
  */
 export const logTransaction = async (transaction: PaymentTransaction): Promise<string> => {
     try {
-        const docRef = await addDoc(collection(db, 'transactions'), {
+        // Use setDoc to create or overwrite. 
+        // This ensures that if the same payment comes in twice, we handle it gracefully 
+        const { setDoc } = await import('firebase/firestore');
+        const docRef = doc(db, 'transactions', transaction.paymentId);
+
+        await setDoc(docRef, {
             ...transaction,
             createdAt: serverTimestamp(),
         });
 
-        console.log(`📝 Transaction logged: ${docRef.id}`);
-        return docRef.id;
+        console.log(`📝 Transaction logged: ${transaction.paymentId}`);
+        return transaction.paymentId;
 
     } catch (error) {
         console.error('❌ Failed to log transaction:', error);
@@ -110,8 +116,8 @@ export const logTransaction = async (transaction: PaymentTransaction): Promise<s
  */
 export const checkTransactionExists = async (paymentId: string): Promise<boolean> => {
     try {
-        const transactionsRef = collection(db, 'transactions');
-        const snapshot = await getDoc(doc(transactionsRef, paymentId));
+        const docRef = doc(db, 'transactions', paymentId);
+        const snapshot = await getDoc(docRef);
         return snapshot.exists();
     } catch (error) {
         console.error('❌ Failed to check transaction:', error);

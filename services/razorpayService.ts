@@ -49,7 +49,7 @@ export const createPaymentOrder = async (data: PaymentOrderData): Promise<Razorp
 
         // TODO: Call your backend API to create order
         // For now, we'll create a mock order ID
-        const orderId = `order_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const orderId = `order_mock_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
         console.log(`✅ Order created: ${orderId}`);
 
@@ -139,13 +139,11 @@ export const initializeRazorpayCheckout = (
             name: 'AutoForm',
             description: `${data.tokens} Tokens`,
             // Only pass order_id if it's a real Razorpay order (captured from backend)
-            // If it's a mock client-side ID, we omit it to allow "Standard Checkout" without Orders API
-            ...(order.orderId && !order.orderId.includes('_mock_') && !order.orderId.includes('order_') ? { order_id: order.orderId } : {}),
+            // If it's a mock client-side ID (contains '_mock_'), we omit it to allow "Standard Checkout"
+            ...(order.orderId && !order.orderId.includes('_mock_') ? { order_id: order.orderId } : {}),
             /*
-             * NOTE: For client-side integration without backend, we DO NOT pass order_id.
+             * NOTE: For client-side integration without backend, we DO NOT pass order_id if it's mock.
              * Razorpay will create a payment_id.
-             * We can't automatically verify signature securely without backend,
-             * but this allows the payment to go through.
              */
             prefill: {
                 email: data.userEmail,
@@ -153,6 +151,9 @@ export const initializeRazorpayCheckout = (
             },
             theme: {
                 color: '#F59E0B', // Amber color
+            },
+            retry: {
+                enabled: true,
             },
             handler: function (response: any) {
                 console.log('✅ Payment successful:', response);
