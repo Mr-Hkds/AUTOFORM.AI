@@ -285,6 +285,16 @@ const AdminDashboard = ({ user, onBack }: { user: User; onBack: () => void }) =>
         }
     };
 
+    // Helper function to shorten email for mobile display
+    const shortenEmail = (email: string, maxLength: number = 15): string => {
+        if (email.length <= maxLength) return email;
+        const [username, domain] = email.split('@');
+        if (username.length > maxLength - 3) {
+            return `${username.substring(0, maxLength - 3)}...@${domain}`;
+        }
+        return email;
+    };
+
     if (!user.isAdmin) {
         return (
             <div className="flex h-[80vh] items-center justify-center text-slate-500">
@@ -442,9 +452,21 @@ const AdminDashboard = ({ user, onBack }: { user: User; onBack: () => void }) =>
                                         </button>
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                                <span className="font-medium text-white text-sm sm:text-base break-all">{req.userEmail}</span>
+                                                {/* Mobile: Shortened Email */}
+                                                <span className="sm:hidden font-medium text-white text-sm" title={req.userEmail}>
+                                                    {shortenEmail(req.userEmail, 20)}
+                                                </span>
+                                                {/* Desktop: Full Email */}
+                                                <span className="hidden sm:inline font-medium text-white text-base break-all">
+                                                    {req.userEmail}
+                                                </span>
                                             </div>
-                                            <div className="text-[10px] sm:text-xs text-slate-500 font-mono break-all mb-2">ID: {req.userId}</div>
+                                            <div className="text-[10px] sm:text-xs text-slate-500 font-mono break-all mb-2">
+                                                {/* Mobile: Shortened ID */}
+                                                <span className="sm:hidden">ID: {req.userId.substring(0, 8)}...</span>
+                                                {/* Desktop: Full ID */}
+                                                <span className="hidden sm:inline">ID: {req.userId}</span>
+                                            </div>
 
                                             {/* Payment Details - Stacked on Mobile */}
                                             <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 sm:gap-4 text-xs sm:text-sm">
