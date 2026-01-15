@@ -108,7 +108,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ onClose, user }) => {
             console.log('✅ Payment successful, verifying...');
 
             // Verify payment signature
-            const isValid = await verifyPaymentSignature(
+            const isValid = verifyPaymentSignature(
                 orderId,
                 response.razorpay_payment_id,
                 response.razorpay_signature
