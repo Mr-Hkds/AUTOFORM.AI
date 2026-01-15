@@ -241,11 +241,14 @@ const Footer = () => (
     </div>
 
     {/* Disclaimer */}
-    <div className="max-w-3xl mx-auto border-t border-white/5 mt-8 pt-6 px-6 text-center">
-      <p className="text-[10px] text-slate-600 leading-relaxed font-mono">
-        <span className="text-amber-600/60">DISCLAIMER:</span> Developed strictly for <span className="text-slate-500">Educational Purposes</span> & <span className="text-slate-500">Logic Testing</span>.
-        <br className="hidden md:block" />
-        User responsibility required. Compliant with local execution standards.
+    <div className="max-w-4xl mx-auto border-t border-white/5 mt-8 pt-6 px-4 md:px-6 text-center">
+      <p className="text-[10px] md:text-xs text-slate-600 leading-relaxed font-mono mb-3">
+        <span className="text-amber-600/70 font-bold">⚠️ LEGAL DISCLAIMER:</span> This tool is provided strictly for <span className="text-slate-500 font-semibold">Educational & Research Purposes</span> only.
+      </p>
+      <p className="text-[9px] md:text-[10px] text-slate-700 leading-relaxed max-w-2xl mx-auto">
+        By using this software, you acknowledge that you are solely responsible for compliance with all applicable laws, regulations, and terms of service.
+        The developers assume no liability for misuse, unauthorized access, or violations of third-party policies.
+        <span className="block mt-2 text-slate-600">Use responsibly and ethically. Always obtain proper authorization before automating form submissions.</span>
       </p>
       <div className="flex justify-center mb-6 opacity-80 mix-blend-screen pointer-events-none select-none">
         <img
@@ -363,10 +366,15 @@ function App() {
   const [showLaptopNotice, setShowLaptopNotice] = useState(false);
 
   useEffect(() => {
-    // Check if user is on mobile
+    // Check if user is on mobile and hasn't seen the notice before
+    const hasSeenNotice = localStorage.getItem('laptop_notice_seen');
+
     const checkDevice = () => {
       const isMobile = window.innerWidth < 1024; // Show on tablet/mobile
-      setShowLaptopNotice(isMobile);
+      if (isMobile && !hasSeenNotice) {
+        setShowLaptopNotice(true);
+        localStorage.setItem('laptop_notice_seen', 'true');
+      }
     };
 
     checkDevice();
