@@ -1,8 +1,9 @@
+
 import React, { useEffect, useState } from 'react';
 import { collection, getDocs, query, orderBy, limit, onSnapshot, doc, deleteDoc, updateDoc, Timestamp, where } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { PaymentTransaction, User } from '../types';
-import { CheckCircle, XCircle, Clock, ShieldCheck, ArrowLeft, Users, DollarSign, RefreshCw, Trash2, Edit2, Activity, CreditCard } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, ShieldCheck, ArrowLeft, Users, DollarSign, RefreshCw, Trash2, Edit2, Activity, CreditCard, TrendingUp } from 'lucide-react';
 
 const AdminDashboard = ({ user, onBack }: { user: User; onBack: () => void }) => {
     const [transactions, setTransactions] = useState<PaymentTransaction[]>([]);
@@ -153,7 +154,8 @@ const AdminDashboard = ({ user, onBack }: { user: User; onBack: () => void }) =>
                 return;
             }
 
-            if (!confirm(`Found ${usersToDelete.length} users to delete. Confirm deletion?`)) {
+            const confirmMsg = `Found ${usersToDelete.length} users to delete.Confirm deletion ? `;
+            if (!window.confirm(confirmMsg)) {
                 setCleaningUsers(false);
                 return;
             }
@@ -178,7 +180,7 @@ const AdminDashboard = ({ user, onBack }: { user: User; onBack: () => void }) =>
     };
 
     const handleEditTokens = async (targetUser: User) => {
-        const newTokensStr = prompt(`Enter new token balance for ${targetUser.displayName}:`, targetUser.tokens?.toString() || "0");
+        const newTokensStr = prompt(`Enter new token balance for ${targetUser.displayName}: `, targetUser.tokens?.toString() || "0");
         if (newTokensStr === null) return; // Cancelled
         const newTokens = parseInt(newTokensStr);
         if (isNaN(newTokens) || newTokens < 0) {
@@ -284,12 +286,12 @@ const AdminDashboard = ({ user, onBack }: { user: User; onBack: () => void }) =>
 
                 <div className="glass-panel p-4 sm:p-6 rounded-xl border border-white/5 hover:border-emerald-500/20 transition-colors group">
                     <div className="flex items-center justify-between mb-2">
-                        <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400 group-hover:scale-110 transition-transform" />
+                        <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400 group-hover:scale-110 transition-transform" />
                     </div>
                     <div className="text-2xl sm:text-3xl font-bold text-emerald-400 mb-1">
-                        ₹{totalRevenue.toLocaleString()}
+                        {((allUsers.filter(u => u.isPremium).length / (totalUsers || 1)) * 100).toFixed(1)}%
                     </div>
-                    <div className="text-[10px] sm:text-xs text-slate-500 uppercase tracking-widest">Total Revenue</div>
+                    <div className="text-[10px] sm:text-xs text-slate-500 uppercase tracking-widest">Conversion Rate</div>
                 </div>
 
                 <div className="glass-panel p-4 sm:p-6 rounded-xl border border-white/5 hover:border-amber-500/20 transition-colors group">
@@ -337,7 +339,7 @@ const AdminDashboard = ({ user, onBack }: { user: User; onBack: () => void }) =>
                 ) : (
                     <div className="divide-y divide-white/5">
                         {transactions.map((tx) => (
-                            <div key={tx.id} className="p-4 sm:p-6 hover:bg-white/[0.02] transition-colors">
+                            <div key={tx.id} className="p-4 sm:p-6 hover:bg-white/[0.02] transition-colors group">
                                 <div className="flex items-start gap-3">
                                     {/* Status Icon */}
                                     <div className="mt-1">
@@ -356,8 +358,8 @@ const AdminDashboard = ({ user, onBack }: { user: User; onBack: () => void }) =>
                                                 {tx.userEmail}
                                             </span>
                                             <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${tx.status === 'success' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
-                                                    'bg-red-500/10 text-red-400 border border-red-500/20'
-                                                }`}>
+                                                'bg-red-500/10 text-red-400 border border-red-500/20'
+                                                } `}>
                                                 {tx.status}
                                             </span>
                                         </div>
@@ -381,6 +383,25 @@ const AdminDashboard = ({ user, onBack }: { user: User; onBack: () => void }) =>
                                             <div className="font-mono text-slate-400 text-[10px] sm:text-xs">Method: {tx.method}</div>
                                         </div>
                                     </div>
+
+                                    {/* Delete Transaction Button */}
+                                    <button
+                                        onClick={async (e) => {
+                                            e.stopPropagation();
+                                            if (!confirm('Are you sure you want to delete this transaction record? This only deletes the record, not the actual payment.')) return;
+                                            try {
+                                                await deleteDoc(doc(db, 'transactions', tx.id!));
+                                                setTransactions(prev => prev.filter(t => t.id !== tx.id));
+                                            } catch (err) {
+                                                console.error('Error deleting transaction:', err);
+                                                alert('Failed to delete transaction.');
+                                            }
+                                        }}
+                                        className="p-2 opacity-0 group-hover:opacity-100 bg-white/5 hover:bg-red-500/20 text-slate-400 hover:text-red-400 rounded-lg transition-all"
+                                        title="Delete Transaction Record"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
                                 </div>
                             </div>
                         ))}

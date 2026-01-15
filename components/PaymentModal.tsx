@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowRight, ArrowLeft, CheckCircle, Upload, AlertCircle, QrCode, Coins, Zap, Crown, CreditCard, Shield, Lock } from 'lucide-react';
+import { ArrowRight, ArrowLeft, CheckCircle, Upload, AlertCircle, QrCode, Coins, Zap, Crown, CreditCard, Shield, Lock, ShieldCheck } from 'lucide-react';
 import { createPaymentOrder, initializeRazorpayCheckout, verifyPaymentSignature } from '../services/razorpayService';
 import { creditTokensAutomatically } from '../services/autoPaymentService';
 import { User } from '../types';
@@ -263,123 +263,106 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ onClose, user }) => {
                             </div>
                         </div>
                     ) : (
-                        // Step 2: Razorpay Payment
                         <div className="space-y-6 animate-fade-in-right">
-                            <button onClick={() => setStep(1)} className="text-xs text-slate-400 hover:text-white flex items-center gap-2 mb-4 transition-colors duration-300 group">
-                                <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform duration-300" /> Back to Packs
+                            <button
+                                onClick={() => setStep(1)}
+                                className="text-xs text-slate-400 hover:text-white flex items-center gap-2 mb-2 transition-all duration-300 group hover:-translate-x-1"
+                            >
+                                <ArrowLeft className="w-4 h-4" /> Back to Packs
                             </button>
 
-                            <div className="flex items-center gap-4 p-5 bg-gradient-to-r from-white/5 to-white/[0.02] rounded-xl border border-white/10 backdrop-blur-sm">
-                                <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${selectedPack.color} flex items-center justify-center shadow-lg`}>
-                                    <selectedPack.icon className="w-7 h-7 text-white" />
-                                </div>
-                                <div className="flex-1">
-                                    <div className="text-xs text-slate-400 uppercase tracking-wider mb-1">Unlocking</div>
-                                    <div className="text-lg text-white font-bold">{selectedPack.tokens} Tokens</div>
-                                </div>
-                                <div className="text-2xl font-mono font-bold bg-gradient-to-r from-amber-400 to-amber-600 bg-clip-text text-transparent">₹{selectedPack.price}</div>
-                            </div>
+                            {/* Main Card - God-Tier Glassmorphism */}
+                            <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-[#0a0f18] shadow-2xl">
+                                {/* Ambient Background Glows */}
+                                <div className="absolute -top-20 -right-20 w-64 h-64 bg-amber-500/10 rounded-full blur-[80px] pointer-events-none animate-pulse-slow"></div>
+                                <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-indigo-500/10 rounded-full blur-[80px] pointer-events-none"></div>
 
-                            {/* Razorpay Payment Section - Premium Design */}
-                            <div className="space-y-6">
-                                {/* Trust & Security Header */}
-                                <div className="text-center mb-2">
-                                    <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full mb-3">
-                                        <Shield className="w-3.5 h-3.5 text-emerald-400" />
-                                        <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">100% Secure Payment</span>
-                                    </div>
-                                    <h4 className="text-xl font-bold text-white mb-1">Complete Your Purchase</h4>
-                                    <p className="text-sm text-slate-400 max-w-xs mx-auto">
-                                        Your payment information is encrypted and secure.
-                                    </p>
-                                </div>
-
-                                {/* Security Benefits Grid */}
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div className="p-3 bg-white/[0.03] border border-white/5 rounded-xl flex items-center gap-3 hover:bg-white/[0.05] transition-colors">
-                                        <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
-                                            <Lock className="w-4 h-4 text-emerald-400" />
+                                <div className="p-8 relative z-10">
+                                    {/* Header - Animated Lock */}
+                                    <div className="text-center mb-8">
+                                        <div className="w-16 h-16 mx-auto bg-gradient-to-br from-amber-400/20 to-amber-600/5 rounded-2xl flex items-center justify-center border border-amber-500/20 shadow-[0_0_25px_rgba(245,158,11,0.15)] mb-4 animate-float">
+                                            <Lock className="w-8 h-8 text-amber-400 drop-shadow-[0_2px_10px_rgba(245,158,11,0.5)]" />
                                         </div>
-                                        <div>
-                                            <div className="text-xs font-bold text-white">256-bit SSL</div>
-                                            <div className="text-[10px] text-slate-400">Bank-grade Security</div>
+                                        <h3 className="text-2xl font-bold text-white tracking-tight mb-1">Confirm Payment</h3>
+                                        <div className="flex items-center justify-center gap-2 text-sm text-slate-400">
+                                            <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                                            <span>Bank-grade 256-bit SSL Ecryption</span>
                                         </div>
                                     </div>
-                                    <div className="p-3 bg-white/[0.03] border border-white/5 rounded-xl flex items-center gap-3 hover:bg-white/[0.05] transition-colors">
-                                        <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center">
-                                            <Zap className="w-4 h-4 text-blue-400" />
-                                        </div>
-                                        <div>
-                                            <div className="text-xs font-bold text-white">Instant Credit</div>
-                                            <div className="text-[10px] text-slate-400">Tokens in 2 seconds</div>
+
+                                    {/* Purchase Summary Card */}
+                                    <div className="relative bg-white/[0.03] border border-white/10 rounded-2xl p-6 mb-8 hover:bg-white/[0.05] transition-colors duration-500 group">
+                                        <div className="flex items-center justify-between items-start">
+                                            <div className="flex gap-4">
+                                                <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${selectedPack.color} p-0.5`}>
+                                                    <div className="w-full h-full bg-slate-900/50 rounded-[10px] flex items-center justify-center backdrop-blur-sm">
+                                                        <selectedPack.icon className="w-7 h-7 text-white" />
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <div className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">Purchasing</div>
+                                                    <div className="text-xl font-bold text-white">{selectedPack.name}</div>
+                                                    <div className="text-sm text-amber-400 flex items-center gap-1">
+                                                        {selectedPack.tokens} Tokens <Zap className="w-3 h-3" />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                <div className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">Total</div>
+                                                <div className="text-3xl font-mono font-bold text-white tracking-tight">₹{selectedPack.price}</div>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
 
-                                {error && (
-                                    <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center gap-3 animate-pulse">
-                                        <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
-                                        <p className="text-sm text-red-200">{error}</p>
+                                    {/* Email Confirmation */}
+                                    <div className="mb-4 flex items-center justify-center gap-2 text-xs text-slate-500">
+                                        <span>Receipt will be sent to:</span>
+                                        <span className="text-amber-500 font-mono">{user.email}</span>
                                     </div>
-                                )}
 
-                                {/* Premium Pay Button */}
-                                <div className="relative group">
-                                    <div className="absolute -inset-1 bg-gradient-to-r from-amber-500 to-amber-600 rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-1000 group-hover:duration-200"></div>
+                                    {error && (
+                                        <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center gap-3 animate-shake">
+                                            <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
+                                            <p className="text-sm font-medium text-red-200">{error}</p>
+                                        </div>
+                                    )}
+
+                                    {/* Action Button - The "God" Button */}
                                     <button
                                         onClick={handleRazorpayPayment}
                                         disabled={razorpayProcessing}
-                                        className="relative w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 disabled:from-slate-700 disabled:to-slate-800 text-white font-bold h-16 rounded-xl flex items-center justify-between px-6 transition-all duration-300 shadow-xl shadow-amber-500/20 hover:shadow-2xl hover:shadow-amber-500/30 disabled:shadow-none hover:translate-y-[-1px] active:translate-y-[1px] disabled:cursor-not-allowed disabled:opacity-50 overflow-hidden"
+                                        className="relative w-full group overflow-hidden rounded-xl p-[1px] shadow-[0_0_40px_rgba(245,158,11,0.3)] hover:shadow-[0_0_60px_rgba(245,158,11,0.5)] transition-shadow duration-500"
                                     >
-                                        <div className="flex items-center gap-3">
+                                        <div className="absolute inset-0 bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 animate-gradient-x"></div>
+                                        <div className="relative bg-slate-900 h-14 rounded-[11px] flex items-center justify-center overflow-hidden">
+                                            <div className="absolute inset-0 bg-gradient-to-r from-amber-500/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+
                                             {razorpayProcessing ? (
-                                                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-5 h-5 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+                                                    <span className="font-bold text-amber-500 uppercase tracking-wider text-xs">Processing...</span>
+                                                </div>
                                             ) : (
-                                                <div className="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center backdrop-blur-sm">
-                                                    <CreditCard className="w-5 h-5 text-white" />
+                                                <div className="flex items-center gap-3">
+                                                    <span className="text-white font-bold text-lg tracking-wide group-hover:scale-105 transition-transform">PAY NOW</span>
+                                                    <ArrowRight className="w-5 h-5 text-amber-400 group-hover:translate-x-1 transition-transform" />
                                                 </div>
                                             )}
-                                            <div className="text-left leading-tight">
-                                                <div className="text-[10px] text-amber-100 uppercase tracking-wider font-semibold">Total Amount</div>
-                                                <div className="text-lg">Pay ₹{selectedPack.price}</div>
-                                            </div>
-                                        </div>
-
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-sm font-semibold text-white/90">Proceed</span>
-                                            <ArrowRight className="w-5 h-5 text-white group-hover:translate-x-1 transition-transform" />
-                                        </div>
-
-                                        {/* Security Badge Overlay */}
-                                        <div className="absolute top-0 right-0 p-2 opacity-50">
-                                            <Shield className="w-12 h-12 text-white/10 rotate-12" />
                                         </div>
                                     </button>
-                                </div>
 
-                                {/* Trust Footer */}
-                                <div className="pt-2">
-                                    <div className="flex items-center justify-center gap-4 mb-4 opacity-60 grayscale hover:grayscale-0 transition-all duration-500">
-                                        <div className="flex flex-col items-center">
-                                            <div className="text-[10px] font-bold text-white mb-1">UPI</div>
-                                            <div className="w-8 h-0.5 bg-white/20 rounded-full"></div>
+                                    {/* Trust Badges */}
+                                    <div className="mt-8 flex justify-center gap-6 opacity-60">
+                                        <div className="tooltip flex items-center gap-2 grayscale hover:grayscale-0 transition-all cursor-help" title="Official Razorpay Merchant">
+                                            <Shield className="w-4 h-4 text-emerald-500" />
+                                            <span className="text-[10px] uppercase font-bold text-slate-400">Verified Merchant</span>
                                         </div>
-                                        <div className="flex flex-col items-center">
-                                            <div className="text-[10px] font-bold text-white mb-1">CARDS</div>
-                                            <div className="w-8 h-0.5 bg-white/20 rounded-full"></div>
-                                        </div>
-                                        <div className="flex flex-col items-center">
-                                            <div className="text-[10px] font-bold text-white mb-1">NETBANKING</div>
-                                            <div className="w-12 h-0.5 bg-white/20 rounded-full"></div>
+                                        <div className="flex items-center gap-2 grayscale hover:grayscale-0 transition-all">
+                                            <Lock className="w-4 h-4 text-emerald-500" />
+                                            <span className="text-[10px] uppercase font-bold text-slate-400">Secure AES-256</span>
                                         </div>
                                     </div>
 
-                                    <div className="flex items-center justify-center gap-1.5 text-[10px] text-slate-500">
-                                        <CheckCircle className="w-3 h-3 text-emerald-500" />
-                                        <span>Verified and Secured by <strong>Razorpay</strong></span>
-                                        <span className="mx-1">•</span>
-                                        <span>PCI DSS Compliant</span>
-                                    </div>
                                 </div>
                             </div>
                         </div>

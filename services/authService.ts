@@ -32,11 +32,20 @@ export const signInWithGoogle = async (): Promise<User> => {
             const userSnap = await getDoc(userRef);
 
             if (userSnap.exists()) {
-                // User exists, update last login
+                // User exists, update last login and sync profile data
                 await updateDoc(userRef, {
-                    lastLogin: serverTimestamp()
+                    lastLogin: serverTimestamp(),
+                    email: firebaseUser.email || "",
+                    displayName: firebaseUser.displayName || "User",
+                    photoURL: firebaseUser.photoURL || ""
                 });
-                appUser = { ...userSnap.data(), uid: firebaseUser.uid } as User;
+                appUser = {
+                    ...userSnap.data(),
+                    uid: firebaseUser.uid,
+                    email: firebaseUser.email || userSnap.data().email || "",
+                    displayName: firebaseUser.displayName || userSnap.data().displayName || "User",
+                    photoURL: firebaseUser.photoURL || userSnap.data().photoURL || ""
+                } as User;
             } else {
                 // New User -> Create Free Tier Doc
                 const newUser: Omit<User, 'uid'> = {
