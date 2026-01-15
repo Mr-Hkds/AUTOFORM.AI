@@ -292,111 +292,106 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ onClose, user }) => {
                                 <div className="text-2xl font-mono font-bold bg-gradient-to-r from-amber-400 to-amber-600 bg-clip-text text-transparent">₹{selectedPack.price}</div>
                             </div>
 
-                            {/* Razorpay Payment Section */}
+                            {/* Razorpay Payment Section - Premium Design */}
                             <div className="space-y-6">
-                                {/* Security & Trust Badge Header */}
-                                <div className="p-6 bg-gradient-to-br from-emerald-500/10 to-emerald-600/5 border border-emerald-500/30 rounded-2xl">
-                                    <div className="flex items-center justify-between mb-4">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center">
-                                                <Shield className="w-6 h-6 text-emerald-400" />
-                                            </div>
-                                            <div>
-                                                <h4 className="text-base font-bold text-white">100% Secure Payment</h4>
-                                                <p className="text-[10px] text-emerald-400 flex items-center gap-1">
-                                                    <CheckCircle className="w-3 h-3" />
-                                                    Verified by Razorpay
-                                                </p>
-                                            </div>
-                                        </div>
-                                        <div className="text-right">
-                                            <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Trusted by</div>
-                                            <div className="text-sm font-bold text-white">10M+ Users</div>
-                                        </div>
+                                {/* Trust & Security Header */}
+                                <div className="text-center mb-2">
+                                    <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full mb-3">
+                                        <Shield className="w-3.5 h-3.5 text-emerald-400" />
+                                        <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">100% Secure Payment</span>
                                     </div>
-                                    <p className="text-sm text-slate-300 mb-4">
-                                        Your payment is protected by bank-grade encryption. Tokens will be credited instantly after successful payment.
+                                    <h4 className="text-xl font-bold text-white mb-1">Complete Your Purchase</h4>
+                                    <p className="text-sm text-slate-400 max-w-xs mx-auto">
+                                        Your payment information is encrypted and secure.
                                     </p>
-                                    <div className="grid grid-cols-2 gap-2 text-xs text-emerald-400">
-                                        <div className="flex items-center gap-2">
-                                            <Lock className="w-3.5 h-3.5" />
-                                            <span>256-bit SSL</span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <CheckCircle className="w-3.5 h-3.5" />
-                                            <span>PCI DSS Certified</span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <CheckCircle className="w-3.5 h-3.5" />
-                                            <span>Instant Delivery</span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <CheckCircle className="w-3.5 h-3.5" />
-                                            <span>0% Fees on UPI</span>
-                                        </div>
-                                    </div>
                                 </div>
 
-                                {/* Payment Methods Info */}
-                                <div className="p-4 bg-white/[0.02] border border-white/10 rounded-xl">
-                                    <div className="text-xs text-slate-400 uppercase tracking-wider mb-3 text-center">Accepted Payment Methods</div>
-                                    <div className="flex items-center justify-center gap-3 flex-wrap">
-                                        <div className="px-3 py-2 bg-white/5 border border-white/10 rounded-lg">
-                                            <span className="text-xs font-semibold text-white">UPI</span>
+                                {/* Security Benefits Grid */}
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="p-3 bg-white/[0.03] border border-white/5 rounded-xl flex items-center gap-3 hover:bg-white/[0.05] transition-colors">
+                                        <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+                                            <Lock className="w-4 h-4 text-emerald-400" />
                                         </div>
-                                        <div className="px-3 py-2 bg-white/5 border border-white/10 rounded-lg">
-                                            <span className="text-xs font-semibold text-white">Cards</span>
+                                        <div>
+                                            <div className="text-xs font-bold text-white">256-bit SSL</div>
+                                            <div className="text-[10px] text-slate-400">Bank-grade Security</div>
                                         </div>
-                                        <div className="px-3 py-2 bg-white/5 border border-white/10 rounded-lg">
-                                            <span className="text-xs font-semibold text-white">NetBanking</span>
+                                    </div>
+                                    <div className="p-3 bg-white/[0.03] border border-white/5 rounded-xl flex items-center gap-3 hover:bg-white/[0.05] transition-colors">
+                                        <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center">
+                                            <Zap className="w-4 h-4 text-blue-400" />
                                         </div>
-                                        <div className="px-3 py-2 bg-white/5 border border-white/10 rounded-lg">
-                                            <span className="text-xs font-semibold text-white">Wallets</span>
+                                        <div>
+                                            <div className="text-xs font-bold text-white">Instant Credit</div>
+                                            <div className="text-[10px] text-slate-400">Tokens in 2 seconds</div>
                                         </div>
                                     </div>
                                 </div>
 
                                 {error && (
-                                    <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center gap-3">
+                                    <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center gap-3 animate-pulse">
                                         <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
                                         <p className="text-sm text-red-200">{error}</p>
                                     </div>
                                 )}
 
-                                {/* Pay Button */}
-                                <button
-                                    onClick={handleRazorpayPayment}
-                                    disabled={razorpayProcessing}
-                                    className="relative w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 disabled:from-slate-700 disabled:to-slate-800 text-white font-bold h-16 rounded-xl flex items-center justify-center gap-3 transition-all duration-300 shadow-lg shadow-amber-500/30 hover:shadow-xl hover:shadow-amber-500/40 disabled:shadow-none hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 overflow-hidden"
-                                >
-                                    {/* Security badge overlay */}
-                                    <div className="absolute top-2 right-2 flex items-center gap-1 bg-white/10 px-2 py-1 rounded-full">
-                                        <Shield className="w-3 h-3 text-emerald-300" />
-                                        <span className="text-[9px] text-emerald-300 font-semibold">Secure</span>
-                                    </div>
+                                {/* Premium Pay Button */}
+                                <div className="relative group">
+                                    <div className="absolute -inset-1 bg-gradient-to-r from-amber-500 to-amber-600 rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-1000 group-hover:duration-200"></div>
+                                    <button
+                                        onClick={handleRazorpayPayment}
+                                        disabled={razorpayProcessing}
+                                        className="relative w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 disabled:from-slate-700 disabled:to-slate-800 text-white font-bold h-16 rounded-xl flex items-center justify-between px-6 transition-all duration-300 shadow-xl shadow-amber-500/20 hover:shadow-2xl hover:shadow-amber-500/30 disabled:shadow-none hover:translate-y-[-1px] active:translate-y-[1px] disabled:cursor-not-allowed disabled:opacity-50 overflow-hidden"
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            {razorpayProcessing ? (
+                                                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                            ) : (
+                                                <div className="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center backdrop-blur-sm">
+                                                    <CreditCard className="w-5 h-5 text-white" />
+                                                </div>
+                                            )}
+                                            <div className="text-left leading-tight">
+                                                <div className="text-[10px] text-amber-100 uppercase tracking-wider font-semibold">Total Amount</div>
+                                                <div className="text-lg">Pay ₹{selectedPack.price}</div>
+                                            </div>
+                                        </div>
 
-                                    {razorpayProcessing ? (
-                                        <>
-                                            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                            Processing Payment...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <CreditCard className="w-5 h-5" />
-                                            Pay ₹{selectedPack.price} Securely
-                                        </>
-                                    )}
-                                </button>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-sm font-semibold text-white/90">Proceed</span>
+                                            <ArrowRight className="w-5 h-5 text-white group-hover:translate-x-1 transition-transform" />
+                                        </div>
+
+                                        {/* Security Badge Overlay */}
+                                        <div className="absolute top-0 right-0 p-2 opacity-50">
+                                            <Shield className="w-12 h-12 text-white/10 rotate-12" />
+                                        </div>
+                                    </button>
+                                </div>
 
                                 {/* Trust Footer */}
-                                <div className="text-center space-y-2">
-                                    <div className="flex items-center justify-center gap-2">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
-                                        <p className="text-xs text-emerald-400 font-semibold">Powered by Razorpay - India's Most Trusted Payment Gateway</p>
+                                <div className="pt-2">
+                                    <div className="flex items-center justify-center gap-4 mb-4 opacity-60 grayscale hover:grayscale-0 transition-all duration-500">
+                                        <div className="flex flex-col items-center">
+                                            <div className="text-[10px] font-bold text-white mb-1">UPI</div>
+                                            <div className="w-8 h-0.5 bg-white/20 rounded-full"></div>
+                                        </div>
+                                        <div className="flex flex-col items-center">
+                                            <div className="text-[10px] font-bold text-white mb-1">CARDS</div>
+                                            <div className="w-8 h-0.5 bg-white/20 rounded-full"></div>
+                                        </div>
+                                        <div className="flex flex-col items-center">
+                                            <div className="text-[10px] font-bold text-white mb-1">NETBANKING</div>
+                                            <div className="w-12 h-0.5 bg-white/20 rounded-full"></div>
+                                        </div>
                                     </div>
-                                    <p className="text-[10px] text-slate-500">
-                                        🔒 Your payment is protected by bank-grade 256-bit SSL encryption
-                                    </p>
+
+                                    <div className="flex items-center justify-center gap-1.5 text-[10px] text-slate-500">
+                                        <CheckCircle className="w-3 h-3 text-emerald-500" />
+                                        <span>Verified and Secured by <strong>Razorpay</strong></span>
+                                        <span className="mx-1">•</span>
+                                        <span>PCI DSS Compliant</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
