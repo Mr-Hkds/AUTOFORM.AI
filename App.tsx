@@ -497,6 +497,9 @@ function App() {
 
   const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = Number(e.target.value);
+    if (user && val > (user.tokens || 0)) {
+      setShowPricing(true);
+    }
     setTargetCount(val);
   };
 
@@ -1001,13 +1004,21 @@ function App() {
                                 value={targetCount}
                                 onChange={(e) => {
                                   const val = Math.min(Math.max(1, Number(e.target.value) || 1), 200);
+                                  if (user && val > (user.tokens || 0)) {
+                                    setShowPricing(true);
+                                  }
                                   setTargetCount(val);
                                 }}
                                 className="w-14 h-8 bg-slate-900 border border-slate-700 rounded-lg text-center text-amber-400 font-mono font-bold text-sm focus:outline-none focus:border-amber-500"
                               />
                               <button
-                                onClick={() => setTargetCount(Math.min(200, targetCount + 5))}
-                                className="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center font-bold text-lg transition-all active:scale-95 border border-slate-700"
+                                onClick={() => {
+                                  const newVal = Math.min(200, targetCount + 5);
+                                  if (user && newVal > (user.tokens || 0)) {
+                                    setShowPricing(true);
+                                  }
+                                  setTargetCount(newVal);
+                                }}
                               >
                                 +
                               </button>
@@ -1018,7 +1029,12 @@ function App() {
                               {[10, 25, 50, 100, 200].map((preset) => (
                                 <button
                                   key={preset}
-                                  onClick={() => setTargetCount(preset)}
+                                  onClick={() => {
+                                    if (user && preset > (user.tokens || 0)) {
+                                      setShowPricing(true);
+                                    }
+                                    setTargetCount(preset);
+                                  }}
                                   className={`px-2 py-1 rounded text-[10px] font-mono font-bold transition-all active:scale-95 ${targetCount === preset
                                     ? 'bg-amber-500 text-black'
                                     : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white border border-slate-700'
