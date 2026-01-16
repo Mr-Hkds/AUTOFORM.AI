@@ -20,11 +20,22 @@ const AdminDashboard = ({ user, onBack }: { user: User; onBack: () => void }) =>
 
     const [historyModalOpen, setHistoryModalOpen] = useState(false);
     const [viewingTransactionHistory, setViewingTransactionHistory] = useState<PaymentTransaction[]>([]);
+    const [userMap, setUserMap] = useState<Record<string, string>>({}); // ID -> Email Map
 
     const fetchData = async () => {
         setLoading(true);
 
         try {
+            // 0. Fetch Users First to build User Map (for fallback emails)
+            const usersSnapshot = await getDocs(collection(db, 'users'));
+            const uMap: Record<string, string> = {};
+            usersSnapshot.forEach(doc => {
+                const u = doc.data() as User;
+                if (u.email) uMap[doc.id] = u.email;
+            });
+            setUserMap(uMap);
+            setTotalUsers(usersSnapshot.size);
+
             // 1. Fetch ALL transactions
             const q = query(collection(db, 'transactions'), orderBy('createdAt', 'desc'));
             const snapshot = await getDocs(q);
@@ -50,12 +61,6 @@ const AdminDashboard = ({ user, onBack }: { user: User; onBack: () => void }) =>
         } catch (e) {
             console.error('Failed to fetch data:', e);
         }
-
-        // Fetch User Count
-        try {
-            const usersSnapshot = await getDocs(collection(db, 'users'));
-            setTotalUsers(usersSnapshot.size);
-        } catch (e) { console.error(e); }
 
         setLoading(false);
     };
@@ -392,12 +397,12 @@ const AdminDashboard = ({ user, onBack }: { user: User; onBack: () => void }) =>
                                         <div className="flex items-center gap-2 mb-1 flex-wrap">
                                             {/* Mailto Link - Direct */}
                                             <a
-                                                href={`mailto:${tx.userEmail}`}
+                                                href={`mailto:${tx.userEmail || userMap[tx.userId]}`}
                                                 target="_blank"
                                                 rel="noreferrer"
                                                 className="font-medium text-white text-sm sm:text-base hover:text-amber-400 transition-colors underline decoration-dotted underline-offset-4"
                                             >
-                                                {tx.userEmail}
+                                                {tx.userEmail || userMap[tx.userId] || 'Unknown Email'}
                                             </a>
                                             <span className={`px-2 py-0.5 rounded text-[10px] bg-white/5 text-slate-400 border border-white/10 uppercase font-bold`}>
                                                 {tx.status}
@@ -461,7 +466,7 @@ const AdminDashboard = ({ user, onBack }: { user: User; onBack: () => void }) =>
                                     {viewingTransactionHistory.map(tx => (
                                         <tr key={tx.id} className="hover:bg-white/[0.02]">
                                             <td className="p-4">{tx.createdAt?.toDate ? tx.createdAt.toDate().toLocaleDateString() : '-'}</td>
-                                            <td className="p-4">{tx.userEmail}</td>
+                                            <td className="p-4">{tx.userEmail || userMap[tx.userId] || 'Unknown User'}</td>
                                             <td className="p-4 font-mono text-emerald-400">₹{tx.amount}</td>
                                             <td className="p-4">{tx.status}</td>
                                         </tr>
@@ -475,8 +480,8 @@ const AdminDashboard = ({ user, onBack }: { user: User; onBack: () => void }) =>
 
             {/* User List Modal */}
             {showUsersModal && (
-                <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
-                    <div className="bg-[#0a0a0a] rounded-xl border border-white/10 w-full max-w-5xl max-h-[90vh] flex flex-col shadow-2xl">
+                <div className="fixed inset-0 z-[150] flex items-start justify-center pt-20 p-4 bg-black/90 backdrop-blur-md overflow-y-auto">
+                    <div className="bg-[#0a0a0a] rounded-xl border border-white/10 w-full max-w-5xl flex flex-col shadow-2xl mb-20">
                         <div className="p-6 border-b border-white/10 flex items-center justify-between">
                             <div className="flex items-center gap-3">
                                 <Users className="w-6 h-6 text-blue-400" />
