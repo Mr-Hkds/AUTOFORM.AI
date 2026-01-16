@@ -77,7 +77,7 @@ export interface PaymentTransaction {
   orderId: string;
   amount: number;
   tokens: number;
-  status: 'success' | 'failed' | 'pending';
+  status: 'success' | 'failed' | 'pending' | 'completed' | 'captured';
   method: string;
   metadata?: any;
   createdAt: any;
