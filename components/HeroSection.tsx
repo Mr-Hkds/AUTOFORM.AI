@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowRight, Sparkles, Zap, Gift, Play } from 'lucide-react';
+import { ArrowRight, Sparkles, Zap, Gift, Play, ShieldCheck } from 'lucide-react';
 
 interface HeroSectionProps {
     url: string;
@@ -179,6 +179,19 @@ const HeroSection: React.FC<HeroSectionProps> = ({ url, setUrl, onAnalyze, onWat
                                 <span className="text-xs text-slate-300 font-medium tracking-wide group-hover/item:text-amber-100 transition-colors">Military Grade</span>
                             </div>
 
+                        </div>
+                    </div>
+
+                    {/* Razorpay Trust Indicator */}
+                    <div className="mt-6 animate-fade-in-up" style={{ animationDelay: '600ms' }}>
+                        <div className="relative inline-flex items-center justify-center gap-2 px-6 py-2 rounded-full bg-emerald-900/10 border border-emerald-500/10 backdrop-blur-sm overflow-hidden group cursor-default hover:bg-emerald-900/20 hover:border-emerald-500/30 transition-all duration-300">
+                            {/* Continuous Green Shimmer */}
+                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-emerald-500/20 to-transparent animate-shimmer-flow pointer-events-none" />
+
+                            <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 relative z-10" />
+                            <span className="text-[10px] text-emerald-100/70 font-mono uppercase tracking-widest relative z-10">
+                                100% Secure Payments via <span className="text-emerald-400 font-bold">Razorpay</span>
+                            </span>
                         </div>
                     </div>
                 </div>
