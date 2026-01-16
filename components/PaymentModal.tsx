@@ -11,53 +11,50 @@ interface PaymentModalProps {
 
 const TOKEN_PACKS = [
     {
-        id: 'starter',
-        name: 'Starter',
-        tokens: 80,
-        price: 29,
-        icon: Coins,
-        color: 'from-slate-700 to-slate-900',
-        textColor: 'text-slate-200',
-        border: 'border-slate-500/30'
+        id: 'student',
+        name: 'Student',
+        tokens: 150,
+        price: 49,
+        popular: true,
+        popularLabel: 'Most Popular',
+        icon: Zap,
+        color: 'from-indigo-600 to-indigo-900',
+        textColor: 'text-indigo-200',
+        border: 'border-indigo-500/50',
+        pricePerToken: 0.33
     },
     {
         id: 'pro',
         name: 'Professional',
         tokens: 400,
         price: 99,
-        popular: true,
-        icon: Zap,
+        icon: Crown,
         color: 'from-amber-600 to-amber-800',
         textColor: 'text-amber-200',
-        border: 'border-amber-500/50'
+        border: 'border-amber-500/50',
+        pricePerToken: 0.25,
+        savings: '24% OFF'
     },
     {
-        id: 'ultra',
+        id: 'ultimate',
         name: 'Ultimate',
-        tokens: 1000,
+        tokens: 1200,
         price: 249,
-        icon: Crown,
+        popular: true,
+        popularLabel: 'Best Value',
+        icon: ShieldCheck,
         color: 'from-emerald-600 to-emerald-900',
         textColor: 'text-emerald-200',
-        border: 'border-emerald-500/50'
-    },
-    // TEMPORARY TEST PACK
-    {
-        id: 'test',
-        name: 'Test Mode',
-        tokens: 10,
-        price: 1,
-        icon: Shield,
-        color: 'from-red-900 to-slate-900',
-        textColor: 'text-red-200',
-        border: 'border-red-500/50'
+        border: 'border-emerald-500/50',
+        pricePerToken: 0.21,
+        savings: '37% OFF'
     }
 ];
 
 const PaymentModal: React.FC<PaymentModalProps> = ({ onClose, user }) => {
     // Step 1: Select Pack, Step 2: Razorpay Payment
     const [step, setStep] = useState<1 | 2>(1);
-    const [selectedPack, setSelectedPack] = useState(TOKEN_PACKS[1]); // Default to Pro
+    const [selectedPack, setSelectedPack] = useState(TOKEN_PACKS[1]); // Default to Pro (₹99) - Anchor Effect
 
     const [loading, setLoading] = useState(false);
     // checking state removed (manual payment deprecated)
@@ -183,7 +180,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ onClose, user }) => {
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-fade-in-up">
             <div className="absolute inset-0 bg-black/90 backdrop-blur-lg" onClick={onClose} />
-            <div className="relative w-full max-w-2xl bg-gradient-to-b from-slate-900/95 to-slate-950/95 border border-white/10 rounded-3xl shadow-2xl overflow-visible animate-scale-in backdrop-blur-xl">
+            <div className="relative w-full max-w-5xl bg-gradient-to-b from-slate-900/95 to-slate-950/95 border border-white/10 rounded-3xl shadow-2xl overflow-visible animate-scale-in backdrop-blur-xl">
 
                 {/* Close Button - Fixed in top-right corner */}
                 <button
@@ -216,42 +213,71 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ onClose, user }) => {
                 <div className="p-4 md:p-8 max-h-[70vh] overflow-y-auto custom-scrollbar">
                     {step === 1 ? (
                         <div className="space-y-8 animate-fade-in-right">
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                                 {TOKEN_PACKS.map((pack, index) => (
                                     <div
                                         key={pack.id}
                                         onClick={() => setSelectedPack(pack)}
-                                        style={{ animationDelay: `${index * 50} ms` }}
-                                        className={`relative p - 6 rounded - 2xl border cursor - pointer transition - all duration - 500 group animate - slide - up
+                                        style={{ animationDelay: `${index * 50}ms` }}
+                                        className={`relative p-8 rounded-2xl border cursor-pointer transition-all duration-300 group h-full flex flex-col justify-between min-h-[280px]
                                             ${selectedPack.id === pack.id
-                                                ? `bg-gradient-to-br ${pack.color} border-transparent shadow-xl shadow-amber-500/20 scale-[1.02] ring-2 ring-amber-500/30`
-                                                : 'bg-white/[0.02] border-white/10 hover:border-amber-500/30 hover:bg-white/5 hover:scale-[1.01]'
+                                                ? `bg-gradient-to-br ${pack.color} border-transparent shadow-2xl shadow-amber-500/30 scale-105 ring-2 ring-amber-400/50`
+                                                : 'bg-slate-900/40 border-slate-700/50 hover:border-amber-500/50 hover:shadow-xl hover:shadow-amber-500/10 hover:scale-102'
                                             }
-`}
+                                        `}
                                     >
-                                        {pack.popular && (
-                                            <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-500 to-amber-600 text-white text-[10px] font-bold px-4 py-1.5 rounded-full uppercase tracking-wider shadow-lg animate-bounce">
-                                                Best Value
+                                        {/* Single Top Badge - Only show one badge per card */}
+                                        {pack.popular && selectedPack.id !== pack.id && (
+                                            <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-500 to-amber-600 text-black text-[11px] font-extrabold px-5 py-1.5 rounded-full uppercase tracking-wide shadow-lg z-20">
+                                                {(pack as any).popularLabel}
                                             </div>
                                         )}
-                                        <div className="flex flex-col items-center text-center space-y-4 pt-2">
-                                            <div className={`w - 14 h - 14 rounded - xl ${selectedPack.id === pack.id ? 'bg-white/10' : 'bg-white/5'} flex items - center justify - center transition - all duration - 300 group - hover: scale - 110`}>
-                                                <pack.icon className={`w - 7 h - 7 transition - colors duration - 300 ${selectedPack.id === pack.id ? 'text-white' : 'text-amber-500'} `} />
+
+                                        {/* Savings Corner Badge - Only for cards with savings */}
+                                        {(pack as any).savings && (
+                                            <div className="absolute top-4 right-4 bg-emerald-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-md uppercase tracking-wider shadow-lg">
+                                                {(pack as any).savings}
                                             </div>
-                                            <div>
-                                                <div className={`text - 3xl font - bold font - mono transition - colors duration - 300 ${selectedPack.id === pack.id ? 'text-white' : 'text-white/90'} `}>
+                                        )}
+
+                                        <div className="flex flex-col items-center text-center space-y-6 flex-1">
+                                            {/* Icon */}
+                                            <div className={`w-16 h-16 rounded-2xl flex items-center justify-center transition-all duration-300 ${selectedPack.id === pack.id
+                                                ? 'bg-white/20 shadow-lg'
+                                                : 'bg-slate-800/50 group-hover:bg-slate-700/50'
+                                                }`}>
+                                                <pack.icon className={`w-8 h-8 transition-colors ${selectedPack.id === pack.id ? 'text-white' : 'text-amber-400'
+                                                    }`} />
+                                            </div>
+
+                                            {/* Token Count */}
+                                            <div className="space-y-2">
+                                                <div className={`text-5xl font-black tracking-tight ${selectedPack.id === pack.id ? 'text-white' : 'text-white'
+                                                    }`}>
                                                     {pack.tokens}
                                                 </div>
-                                                <div className={`text - [10px] uppercase tracking - [0.2em] font - semibold mt - 1 transition - colors duration - 300 ${selectedPack.id === pack.id ? 'text-white/80' : 'text-slate-500'} `}>
+                                                <div className={`text-xs uppercase tracking-widest font-bold ${selectedPack.id === pack.id ? 'text-white/70' : 'text-slate-400'
+                                                    }`}>
                                                     Tokens
                                                 </div>
                                             </div>
-                                            <div className={`text - xl font - semibold transition - colors duration - 300 ${selectedPack.id === pack.id ? 'text-amber-200' : 'text-amber-400'} `}>
-                                                ₹{pack.price}
+
+                                            {/* Price */}
+                                            <div className="space-y-1">
+                                                <div className={`text-3xl font-bold ${selectedPack.id === pack.id ? 'text-amber-300' : 'text-amber-400'
+                                                    }`}>
+                                                    ₹{pack.price}
+                                                </div>
+                                                <div className={`text-[10px] font-medium ${selectedPack.id === pack.id ? 'text-white/50' : 'text-slate-500'
+                                                    }`}>
+                                                    ₹{(pack as any).pricePerToken?.toFixed(2)} per token
+                                                </div>
                                             </div>
                                         </div>
+
+                                        {/* Selected Indicator */}
                                         {selectedPack.id === pack.id && (
-                                            <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/5 to-transparent pointer-events-none" />
+                                            <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/10 via-transparent to-transparent pointer-events-none" />
                                         )}
                                     </div>
                                 ))}

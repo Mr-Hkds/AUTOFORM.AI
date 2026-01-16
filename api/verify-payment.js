@@ -111,10 +111,10 @@ export default async function handler(req, res) {
                 let tokensToCredit = 0;
 
                 // Flexible pricing check (allowing small margin for error or currency conversion if any)
-                if (amount >= 29 && amount < 40) tokensToCredit = 80;
-                else if (amount >= 99 && amount < 120) tokensToCredit = 400;
-                else if (amount >= 249) tokensToCredit = 1000;
-                else if (amount === 1) tokensToCredit = 10; // Handle Test Pack
+                if (amount >= 49 && amount < 60) tokensToCredit = 150; // Student Pack
+                else if (amount >= 99 && amount < 120) tokensToCredit = 400; // Professional
+                else if (amount >= 249) tokensToCredit = 1200; // Ultimate (Updated from 1000)
+                // else if (amount === 1) tokensToCredit = 10; // Test Pack Removed
                 else {
                     // Fallback or custom amount logic
                     console.warn(`Amount ₹${amount} does not match standard packs. calculating pro-rata? No, skipping.`);
