@@ -97,6 +97,20 @@ const AdminDashboard = ({ user, onBack }: { user: User; onBack: () => void }) =>
         };
     }, []);
 
+    // Handle Archive (Soft Delete)
+    const handleArchiveTransaction = async (txId: string) => {
+        try {
+            await updateDoc(doc(db, 'transactions', txId), {
+                archived: true
+            });
+            // Remove from local Inbox view only
+            setTransactions(prev => prev.filter(t => t.id !== txId));
+        } catch (error) {
+            console.error("Failed to archive:", error);
+            alert("Failed to dismiss transaction.");
+        }
+    };
+
     const fetchAllUsers = async () => {
         setLoadingUsers(true);
         try {
