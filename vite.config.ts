@@ -31,7 +31,7 @@ export default defineConfig(({ mode }) => {
 
                   // Use environment variables directly in Vite
                   // Support both formats (with and without VITE_ prefix)
-                  const keyId = env.VITE_RAZORPAY_KEY_ID;
+                  const keyId = env.RAZORPAY_KEY_ID || env.VITE_RAZORPAY_KEY_ID;
                   const keySecret = env.RAZORPAY_KEY_SECRET || env.VITE_RAZORPAY_KEY_SECRET;
 
                   if (!keyId || !keySecret) {

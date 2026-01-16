@@ -116,10 +116,11 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ onClose, user }) => {
             console.log('✅ Payment successful, verifying and capturing...');
 
             // Verify and Capture payment via backend
-            // We pass the price from selectedPack
+            // We pass the price from selectedPack and user ID
             await verifyAndCapturePayment(
                 response.razorpay_payment_id,
-                selectedPack.price
+                selectedPack.price,
+                user.uid
             );
 
             // If we reach here, payment is captured successfully

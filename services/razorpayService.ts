@@ -71,7 +71,8 @@ export const createPaymentOrder = async (data: PaymentOrderData): Promise<Razorp
  */
 export const verifyAndCapturePayment = async (
     paymentId: string,
-    amount: number
+    amount: number,
+    userId?: string
 ): Promise<any> => {
     try {
         console.log(`🔐 Verifying and capturing payment: ${paymentId} for ₹${amount}`);
@@ -84,7 +85,8 @@ export const verifyAndCapturePayment = async (
             },
             body: JSON.stringify({
                 paymentId,
-                amount
+                amount,
+                userId
             })
         });
 
