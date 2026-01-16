@@ -18,31 +18,34 @@ const AdminDashboard = ({ user, onBack }: { user: User; onBack: () => void }) =>
     const [loadingUsers, setLoadingUsers] = useState(false);
     const [cleaningUsers, setCleaningUsers] = useState(false);
 
+    const [historyModalOpen, setHistoryModalOpen] = useState(false);
+    const [viewingTransactionHistory, setViewingTransactionHistory] = useState<PaymentTransaction[]>([]);
+
     const fetchData = async () => {
         setLoading(true);
 
         try {
-            // 1. Fetch ALL transactions (for accurate client-side calc)
-            // Note: In a massive app, we'd use aggregation queries, but for <10k txns, this is fine and more accurate for now.
+            // 1. Fetch ALL transactions
             const q = query(collection(db, 'transactions'), orderBy('createdAt', 'desc'));
             const snapshot = await getDocs(q);
             const allTxns = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PaymentTransaction));
 
-            setTransactions(allTxns.slice(0, 50)); // Show top 50 in list
-
-            // 2. Calculate Revenue & Stats
+            // 2. Calculate Revenue (Include EVERYTHING: success, completed, captured, archived or not)
             let totalRev = 0;
-            // let todayRev = 0; // Future use
-
             allTxns.forEach(tx => {
-                // Accept both 'success' (legacy) and 'completed' (new secure backend)
-                // Also accept 'captured' if strictly needed, but 'completed' is the main one now.
                 if (tx.status === 'success' || tx.status === 'completed' || tx.status === 'captured') {
                     totalRev += (tx.amount || 0);
                 }
             });
-
             setTotalRevenue(totalRev);
+
+            // 3. Filter for INBOX (Only show Un-Archived transactions in the main list)
+            // We assume 'archived' is undefined or false for new ones.
+            const inbox = allTxns.filter(tx => !(tx as any).archived);
+            setTransactions(inbox.slice(0, 50));
+
+            // Store full history for the modal
+            setViewingTransactionHistory(allTxns);
 
         } catch (e) {
             console.error('Failed to fetch data:', e);
