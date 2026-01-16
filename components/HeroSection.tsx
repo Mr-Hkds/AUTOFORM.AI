@@ -197,15 +197,15 @@ const HeroSection: React.FC<HeroSectionProps> = ({ url, setUrl, onAnalyze, onWat
                         </div>
                     </div>
 
-                    {/* Laptop Requirement Disclaimer */}
-                    <div className="mt-6 animate-fade-in-up" style={{ animationDelay: '700ms' }}>
-                        <div className="relative inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-full bg-amber-900/10 border border-amber-500/20 backdrop-blur-sm overflow-hidden group cursor-default hover:bg-amber-900/20 hover:border-amber-500/30 transition-all duration-300">
+                    {/* Laptop Requirement Disclaimer - Mobile Only */}
+                    <div className="mt-6 animate-fade-in-up md:hidden" style={{ animationDelay: '700ms' }}>
+                        <div className="relative inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-full bg-gradient-to-r from-amber-900/10 to-orange-900/10 border border-amber-500/20 backdrop-blur-sm overflow-hidden group cursor-default hover:bg-amber-900/20 hover:border-amber-500/30 transition-all duration-300">
                             {/* Subtle Amber Shimmer */}
                             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-amber-500/10 to-transparent animate-shimmer-flow pointer-events-none" />
 
-                            <Laptop className="w-3.5 h-3.5 text-amber-500 relative z-10" />
-                            <span className="text-[10px] text-amber-100/70 font-mono uppercase tracking-widest relative z-10">
-                                Best Experience on <span className="text-amber-400 font-bold">Desktop or Laptop</span>
+                            <Laptop className="w-3.5 h-3.5 text-amber-400 relative z-10" />
+                            <span className="text-[10px] text-amber-100/80 font-mono uppercase tracking-widest relative z-10">
+                                For Premium Experience: <span className="text-amber-300 font-bold">Use Desktop</span>
                             </span>
                         </div>
                     </div>
