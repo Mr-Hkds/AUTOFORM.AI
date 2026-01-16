@@ -138,9 +138,11 @@ const Header = ({ reset, step, user, loading, onLogout, onShowPricing, onSignInC
         className="flex items-center gap-2 sm:gap-3 cursor-pointer opacity-80 hover:opacity-100 transition-opacity"
         onClick={reset}
       >
-        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/20">
-          <Zap className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" fill="currentColor" />
-        </div>
+        <img
+          src="/logo.png"
+          alt="AutoForm Logo"
+          className="w-16 h-16 sm:w-24 sm:h-24 object-contain hover:scale-110 transition-transform duration-300 mix-blend-screen rounded-full"
+        />
         <div className="flex flex-col justify-center gap-0.5">
           <span className="font-serif font-semibold text-sm sm:text-base text-white tracking-tight leading-none">AutoForm</span>
           <span className="text-[7px] sm:text-[8px] text-slate-400 font-sans tracking-[0.25em] uppercase opacity-70 hidden sm:block">A NaagRaaz Production</span>
