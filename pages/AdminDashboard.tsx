@@ -273,8 +273,11 @@ const AdminDashboard = ({ user, onBack }: { user: User; onBack: () => void }) =>
             {/* Stats Check - KPIs */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mb-8 sm:mb-12">
 
-                {/* REVENUE CARD - The most important metric */}
-                <div className="glass-panel p-6 sm:p-8 rounded-2xl border border-amber-500/20 bg-gradient-to-br from-amber-500/5 to-transparent relative overflow-hidden group">
+                {/* REVENUE CARD - Clickable to View History */}
+                <button
+                    onClick={() => setHistoryModalOpen(true)}
+                    className="glass-panel p-6 sm:p-8 rounded-2xl border border-amber-500/20 bg-gradient-to-br from-amber-500/5 to-transparent relative overflow-hidden group text-left transition-all hover:scale-[1.01] hover:shadow-2xl hover:shadow-amber-900/20"
+                >
                     <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
                         <DollarSign className="w-24 h-24 text-amber-500" />
                     </div>
@@ -288,13 +291,14 @@ const AdminDashboard = ({ user, onBack }: { user: User; onBack: () => void }) =>
                         <div className="text-4xl sm:text-5xl font-bold text-white mb-2 tracking-tight">
                             ₹{totalRevenue.toLocaleString()}
                         </div>
-                        <p className="text-slate-400 text-sm">
-                            Lifetime earnings from token sales
-                        </p>
+                        <div className="flex items-center gap-2 text-slate-400 text-sm group-hover:text-amber-300 transition-colors">
+                            <span>View All Transactions</span>
+                            <ArrowRight className="w-4 h-4" />
+                        </div>
                     </div>
-                </div>
+                </button>
 
-                {/* USERS CARD - Click to Manage */}
+                {/* USERS CARD */}
                 <button
                     onClick={fetchAllUsers}
                     className="glass-panel p-6 sm:p-8 rounded-2xl border border-blue-500/20 bg-gradient-to-br from-blue-500/5 to-transparent relative overflow-hidden group text-left transition-all hover:scale-[1.01] hover:shadow-2xl hover:shadow-blue-900/20"
@@ -320,11 +324,14 @@ const AdminDashboard = ({ user, onBack }: { user: User; onBack: () => void }) =>
                 </button>
             </div>
 
-            {/* Transactions List */}
+            {/* INBOX (Recent Unread Transactions) */}
             <div className="glass-panel rounded-xl overflow-hidden border border-white/10">
                 <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-white/5 bg-white/[0.02]">
                     <div className="flex items-center justify-between">
-                        <h3 className="font-bold text-white text-xs sm:text-sm uppercase tracking-wider">Recent Transactions</h3>
+                        <h3 className="font-bold text-white text-xs sm:text-sm uppercase tracking-wider flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                            New Transactions (Inbox)
+                        </h3>
 
                         <div className="flex items-center gap-3">
                             {autoRefreshing && (
@@ -342,9 +349,17 @@ const AdminDashboard = ({ user, onBack }: { user: User; onBack: () => void }) =>
                 </div>
 
                 {loading ? (
-                    <div className="p-12 text-center text-slate-500 text-sm">Loading transactions...</div>
+                    <div className="p-12 text-center text-slate-500 text-sm">Loading inbox...</div>
                 ) : transactions.length === 0 ? (
-                    <div className="p-12 text-center text-slate-500 text-sm">No transactions found.</div>
+                    <div className="p-12 text-center text-slate-500 text-sm flex flex-col items-center gap-3">
+                        <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center">
+                            <CheckCircle className="w-6 h-6 text-slate-600" />
+                        </div>
+                        <span>All caught up! No new transactions.</span>
+                        <button onClick={() => setHistoryModalOpen(true)} className="text-amber-500 hover:underline text-xs">
+                            View Past History
+                        </button>
+                    </div>
                 ) : (
                     <div className="divide-y divide-white/5">
                         {transactions.map((tx) => (
@@ -354,26 +369,23 @@ const AdminDashboard = ({ user, onBack }: { user: User; onBack: () => void }) =>
                                     <div className="mt-1">
                                         {(tx.status === 'success' || tx.status === 'completed' || tx.status === 'captured') ? (
                                             <CheckCircle className="w-5 h-5 text-emerald-400" />
-                                        ) : tx.status === 'pending' ? (
-                                            <Clock className="w-5 h-5 text-amber-400" />
                                         ) : (
-                                            <XCircle className="w-5 h-5 text-red-400" />
+                                            <Clock className="w-5 h-5 text-amber-400" />
                                         )}
                                     </div>
 
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                            {/* Clickable Email for Direct Contact */}
+                                            {/* Mailto Link - Direct */}
                                             <a
-                                                href={`mailto:${tx.userEmail}?subject=AutoForm AI - Special Offer&body=Hi, thanks for using AutoForm!`}
+                                                href={`mailto:${tx.userEmail}`}
+                                                target="_blank"
+                                                rel="noreferrer"
                                                 className="font-medium text-white text-sm sm:text-base hover:text-amber-400 transition-colors underline decoration-dotted underline-offset-4"
-                                                title="Send Email to User"
                                             >
                                                 {tx.userEmail}
                                             </a>
-                                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${(tx.status === 'success' || tx.status === 'completed' || tx.status === 'captured') ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
-                                                'bg-red-500/10 text-red-400 border border-red-500/20'
-                                                } `}>
+                                            <span className={`px-2 py-0.5 rounded text-[10px] bg-white/5 text-slate-400 border border-white/10 uppercase font-bold`}>
                                                 {tx.status}
                                             </span>
                                         </div>
@@ -382,40 +394,24 @@ const AdminDashboard = ({ user, onBack }: { user: User; onBack: () => void }) =>
                                         </div>
 
                                         <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 sm:gap-6 text-xs sm:text-sm">
-                                            <div className="flex items-center gap-1 text-slate-400">
-                                                <Clock className="w-3 h-3 flex-shrink-0" />
-                                                <span className="text-[10px] sm:text-xs">
-                                                    {tx.createdAt ? (
-                                                        tx.createdAt instanceof Timestamp
-                                                            ? tx.createdAt.toDate().toLocaleString()
-                                                            : new Date(tx.createdAt).toLocaleString()
-                                                    ) : 'Unknown Date'}
-                                                </span>
-                                            </div>
                                             <div className="font-mono text-emerald-400 font-bold">₹{tx.amount}</div>
                                             <div className="font-mono text-amber-400 font-bold">{tx.tokens} Tokens</div>
-                                            <div className="font-mono text-slate-400 text-[10px] sm:text-xs">Method: {tx.method}</div>
+                                            <div className="text-slate-500 text-[10px]">
+                                                {tx.createdAt?.toDate ? tx.createdAt.toDate().toLocaleString() : 'Just now'}
+                                            </div>
                                         </div>
                                     </div>
 
-                                    {/* Dismiss / Delete Transaction Button */}
+                                    {/* DISMISS BUTTON (Archives, does not delete) */}
                                     <button
-                                        onClick={async (e) => {
+                                        onClick={(e) => {
                                             e.stopPropagation();
-                                            // Confirm dismissal
-                                            if (!confirm('Dismiss this transaction? It will be removed from this list permanently.')) return;
-                                            try {
-                                                await deleteDoc(doc(db, 'transactions', tx.id!));
-                                                setTransactions(prev => prev.filter(t => t.id !== tx.id));
-                                            } catch (err) {
-                                                console.error('Error deleting transaction:', err);
-                                                alert('Failed to delete transaction.');
-                                            }
+                                            handleArchiveTransaction(tx.id!);
                                         }}
                                         className="p-2 opacity-50 group-hover:opacity-100 bg-white/5 hover:bg-slate-700 text-slate-400 hover:text-white rounded-lg transition-all"
-                                        title="Dismiss (Remove from Inbox)"
+                                        title="Mark as Read (Archive)"
                                     >
-                                        <Trash2 className="w-4 h-4" />
+                                        <CheckCircle className="w-4 h-4" />
                                     </button>
                                 </div>
                             </div>
@@ -423,6 +419,45 @@ const AdminDashboard = ({ user, onBack }: { user: User; onBack: () => void }) =>
                     </div>
                 )}
             </div>
+
+            {/* HISTORY MODAL (Triggered by Revenue Card) */}
+            {historyModalOpen && (
+                <div className="fixed inset-0 z-[160] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
+                    <div className="bg-[#0a0a0a] rounded-xl border border-white/10 w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl">
+                        <div className="p-6 border-b border-white/10 flex items-center justify-between">
+                            <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                                <Activity className="w-5 h-5 text-amber-500" />
+                                Full Transaction History
+                            </h2>
+                            <button onClick={() => setHistoryModalOpen(false)} className="p-2 hover:bg-white/5 rounded-full text-slate-400 hover:text-white">
+                                <XCircle className="w-6 h-6" />
+                            </button>
+                        </div>
+                        <div className="flex-1 overflow-auto p-0">
+                            <table className="w-full text-left text-sm text-slate-400">
+                                <thead className="bg-white/5 text-xs uppercase font-bold text-slate-500 sticky top-0">
+                                    <tr>
+                                        <th className="p-4">Date</th>
+                                        <th className="p-4">User</th>
+                                        <th className="p-4">Amount</th>
+                                        <th className="p-4">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-white/5">
+                                    {viewingTransactionHistory.map(tx => (
+                                        <tr key={tx.id} className="hover:bg-white/[0.02]">
+                                            <td className="p-4">{tx.createdAt?.toDate ? tx.createdAt.toDate().toLocaleDateString() : '-'}</td>
+                                            <td className="p-4">{tx.userEmail}</td>
+                                            <td className="p-4 font-mono text-emerald-400">₹{tx.amount}</td>
+                                            <td className="p-4">{tx.status}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* User List Modal */}
             {showUsersModal && (
