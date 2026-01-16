@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowRight, Sparkles, Zap, Gift, Play, ShieldCheck } from 'lucide-react';
+import { ArrowRight, Sparkles, Zap, Gift, Play, ShieldCheck, Laptop } from 'lucide-react';
 
 interface HeroSectionProps {
     url: string;
@@ -48,7 +48,9 @@ const HeroSection: React.FC<HeroSectionProps> = ({ url, setUrl, onAnalyze, onWat
                                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                             </div>
                             <span className="text-[10px] font-mono font-medium text-slate-400 tracking-[0.2em] md:tracking-[0.25em] uppercase text-center whitespace-normal leading-tight">
-                                System Status: <span className="text-emerald-500/80">Neural Engine Operational</span>
+                                {/* Desktop: Neural Engine Operational, Mobile: Laptop Required */}
+                                <span className="hidden md:inline">System Status: <span className="text-emerald-500/80">Neural Engine Operational</span></span>
+                                <span className="md:hidden text-amber-400/80">⚠️ Desktop Required for Full Features</span>
                             </span>
                         </div>
                     );
@@ -194,24 +196,22 @@ const HeroSection: React.FC<HeroSectionProps> = ({ url, setUrl, onAnalyze, onWat
                             </span>
                         </div>
                     </div>
-                </div>
 
-                {/* Laptop/Desktop Requirement Disclaimer */}
-                <div className="mt-4 animate-fade-in-up flex justify-center" style={{ animationDelay: '700ms' }}>
-                    <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-800/40 border border-slate-700/50 backdrop-blur-sm">
-                        <span className="relative flex h-2 w-2">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-500 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
-                        </span>
-                        <span className="text-[10px] text-slate-400 font-mono tracking-wider uppercase">
-                            <span className="text-slate-300 font-bold">Laptop/Desktop</span> Required for Access
-                        </span>
+                    {/* Laptop Requirement Disclaimer */}
+                    <div className="mt-6 animate-fade-in-up" style={{ animationDelay: '700ms' }}>
+                        <div className="relative inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-full bg-amber-900/10 border border-amber-500/20 backdrop-blur-sm overflow-hidden group cursor-default hover:bg-amber-900/20 hover:border-amber-500/30 transition-all duration-300">
+                            {/* Subtle Amber Shimmer */}
+                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-amber-500/10 to-transparent animate-shimmer-flow pointer-events-none" />
+
+                            <Laptop className="w-3.5 h-3.5 text-amber-500 relative z-10" />
+                            <span className="text-[10px] text-amber-100/70 font-mono uppercase tracking-widest relative z-10">
+                                Best Experience on <span className="text-amber-400 font-bold">Desktop or Laptop</span>
+                            </span>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
-            </div >
-        </section >
+        </section>
     );
 };
 
