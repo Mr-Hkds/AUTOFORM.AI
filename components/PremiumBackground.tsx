@@ -11,9 +11,9 @@ const PremiumBackground = () => {
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,#020617_100%)] opacity-80" />
 
             {/* 3. Orbital Ambient Glows - Slow Moving & GPU Accelerated */}
-            <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-amber-600/10 rounded-full blur-[120px] animate-blob mix-blend-screen will-change-transform transform-gpu" />
-            <div className="absolute top-[20%] right-[-10%] w-[35%] h-[35%] bg-emerald-900/10 rounded-full blur-[100px] animate-blob animation-delay-2000 mix-blend-screen will-change-transform transform-gpu" />
-            <div className="absolute bottom-[-10%] left-[20%] w-[45%] h-[45%] bg-indigo-900/10 rounded-full blur-[140px] animate-blob animation-delay-4000 mix-blend-screen will-change-transform transform-gpu" />
+            <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-amber-600/10 rounded-full blur-[60px] md:blur-[120px] animate-blob mix-blend-screen will-change-transform transform-gpu" />
+            <div className="absolute top-[20%] right-[-10%] w-[35%] h-[35%] bg-emerald-900/10 rounded-full blur-[50px] md:blur-[100px] animate-blob animation-delay-2000 mix-blend-screen will-change-transform transform-gpu" />
+            <div className="absolute bottom-[-10%] left-[20%] w-[45%] h-[45%] bg-indigo-900/10 rounded-full blur-[70px] md:blur-[140px] animate-blob animation-delay-4000 mix-blend-screen will-change-transform transform-gpu" />
 
             {/* 4. Perspective Grid Floor */}
             <div

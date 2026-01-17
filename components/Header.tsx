@@ -73,18 +73,18 @@ const Header: React.FC<HeaderProps> = ({ reset, step, user, loading, onLogout, o
                             </button>
 
                             {/* User Profile */}
-                            <div className="flex items-center gap-2 md:gap-3 pl-2 md:pl-6 border-l border-white/5">
+                            <div className="flex items-center gap-1.5 md:gap-3 pl-2 md:pl-6 border-l border-white/5">
                                 {user.isAdmin && (
                                     <button
                                         onClick={onDashboardClick}
-                                        className="p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-all hidden sm:block"
+                                        className="p-1.5 md:p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-all"
                                         title="Admin Dashboard"
                                     >
-                                        <Settings className="w-4 h-4" />
+                                        <Settings className="w-3.5 h-3.5 md:w-4 md:h-4" />
                                     </button>
                                 )}
 
-                                <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-2 md:gap-3">
                                     <div className="text-right hidden sm:block">
                                         <div className="text-xs font-medium text-white">{user.displayName}</div>
                                         <div className="text-[10px] text-slate-500">{user.email}</div>
@@ -102,10 +102,10 @@ const Header: React.FC<HeaderProps> = ({ reset, step, user, loading, onLogout, o
 
                                     <button
                                         onClick={onLogout}
-                                        className="p-2 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                                        className="p-1.5 md:p-2 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
                                         title="Sign Out"
                                     >
-                                        <LogOut className="w-4 h-4" />
+                                        <LogOut className="w-3.5 h-3.5 md:w-4 md:h-4" />
                                     </button>
                                 </div>
                             </div>
