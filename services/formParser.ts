@@ -69,7 +69,7 @@ const PROXY_PROVIDERS = [
   }
 ];
 
-export const fetchAndParseForm = async (url: string): Promise<{ title: string; questions: FormQuestion[] }> => {
+export const fetchAndParseForm = async (url: string): Promise<{ title: string; questions: FormQuestion[]; hiddenFields?: Record<string, string> }> => {
   // Sanitize URL - remove query parameters
   const cleanUrl = url.split('?')[0];
 
@@ -125,7 +125,23 @@ export const fetchAndParseForm = async (url: string): Promise<{ title: string; q
     htmlTitle = htmlTitle.replace(/ - Google Forms$/, ''); // Clean suffix
 
     const json = JSON.parse(match[1]);
-    return parseGoogleJson(json, decodeHtmlEntities(htmlTitle));
+
+    // Extract hidden inputs (like fbzx, pageHistory, etc.) from HTML
+    // These are CRITICAL for avoiding "fake success" and getting rejected by Google
+    const hiddenFields: Record<string, string> = {};
+    const hiddenInputRegex = /<input\s+type="hidden"\s+name="([^"]+)"\s+value="([^"]*)"/g;
+    let inputMatch;
+    while ((inputMatch = hiddenInputRegex.exec(html)) !== null) {
+      if (inputMatch[1] && inputMatch[2]) {
+        hiddenFields[inputMatch[1]] = inputMatch[2];
+      }
+    }
+
+    // Also look for fbzx in the JSON payload just in case (often in data[1][25] or similar)
+    // but the HTML input is the most reliable source if present.
+
+    const result = parseGoogleJson(json, decodeHtmlEntities(htmlTitle));
+    return { ...result, hiddenFields };
   } catch (e) {
     console.error('[FormParser] JSON Error:', e);
     throw new Error('Failed to parse form data.');
@@ -230,6 +246,19 @@ const parseGoogleJson = (data: any, fallbackTitle: string = ''): { title: string
       required: !!required
     });
   });
+
+  // --- AUTOMATIC EMAIL COLLECTION DETECTION (The "Record email" checkbox) ---
+  const emailCollectionMode = data[1][10] || data[1][24];
+  if (emailCollectionMode > 0 && !questions.some(q => q.entryId === 'emailAddress')) {
+    questions.unshift({
+      id: "email_collection_virtual",
+      entryId: "emailAddress",
+      title: "Email Address (Verified Collection Enabled)",
+      type: QuestionType.SHORT_ANSWER,
+      options: [],
+      required: true
+    });
+  }
 
   return { title: formTitle, questions };
 };

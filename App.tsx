@@ -501,7 +501,10 @@ function App() {
             await new Promise(r => setTimeout(r, 500));
             setProgress(85);
 
-            setAnalysis(statisticalResult);
+            setAnalysis({
+                ...statisticalResult,
+                hiddenFields: rawForm.hiddenFields
+            });
             setAiProgress('Analysis complete!');
 
             await new Promise(r => setTimeout(r, 400));
@@ -633,12 +636,25 @@ function App() {
     };
 
     const executeNativeSubmission = async (url: string, data: Record<string, string | string[]>) => {
-        return new Promise((resolve) => {
+        return new Promise((resolve, reject) => {
             const iframeName = `af_bridge_${Math.random().toString(36).substring(7)}`;
             const iframe = document.createElement('iframe');
             iframe.name = iframeName;
             iframe.id = iframeName;
             iframe.style.display = 'none';
+
+            // Error detection for iframe
+            let hasError = false;
+            const errorHandler = () => {
+                hasError = true;
+                if (document.body.contains(iframe)) {
+                    cleanup();
+                    reject(new Error("Network connection lost or blocked."));
+                }
+            };
+
+            iframe.onerror = errorHandler;
+
             document.body.appendChild(iframe);
 
             const form = document.createElement('form');
@@ -647,18 +663,21 @@ function App() {
             form.target = iframeName;
 
             Object.entries(data).forEach(([key, value]) => {
+                const isSpecial = key.includes('entry.') || key === 'emailAddress';
+                const inputName = isSpecial ? key : `entry.${key}`;
+
                 if (Array.isArray(value)) {
                     value.forEach(v => {
                         const input = document.createElement('input');
                         input.type = 'hidden';
-                        input.name = `entry.${key}`;
+                        input.name = inputName;
                         input.value = v;
                         form.appendChild(input);
                     });
                 } else {
                     const input = document.createElement('input');
                     input.type = 'hidden';
-                    input.name = `entry.${key}`;
+                    input.name = inputName;
                     input.value = value as string;
                     form.appendChild(input);
                 }
@@ -673,18 +692,26 @@ function App() {
 
             document.body.appendChild(form);
 
-            try {
-                form.submit();
-            } catch (e) {
-                console.error("Native Submission Error:", e);
-            }
-
-            // Cleanup
-            setTimeout(() => {
+            const cleanup = () => {
                 if (document.body.contains(form)) document.body.removeChild(form);
                 if (document.body.contains(iframe)) document.body.removeChild(iframe);
-                resolve(true);
-            }, 2000);
+            };
+
+            try {
+                form.submit();
+                // Since we can't read the response due to CORS, we assume it's sent
+                // if the iframe doesn't trigger an error within 2.5 seconds
+                setTimeout(() => {
+                    if (!hasError) {
+                        cleanup();
+                        resolve(true);
+                    }
+                }, 2500);
+            } catch (e) {
+                console.error("Native Submission Error:", e);
+                cleanup();
+                reject(e);
+            }
         });
     };
 
@@ -758,7 +785,8 @@ function App() {
                 pushLog(`Response #${i + 1}: Generating optimized payload...`);
 
                 // Generate values for this specific submission
-                const submissionData: Record<string, string | string[]> = {};
+                // Initialize submission with hidden fields (CRITICAL for valid submissions)
+                const submissionData: Record<string, string | string[]> = { ...(analysis.hiddenFields || {}) };
 
                 analysis.questions.forEach(q => {
                     let value: string | string[] = "";
@@ -772,7 +800,13 @@ function App() {
                     else if (q.title.toLowerCase().includes('name')) {
                         value = namesToUse.length > 0 ? namesToUse[i % namesToUse.length] : "Auto User";
                     }
-                    // 3. Random fallback for options
+                    // 3. Emails (Added specific handling)
+                    else if (q.title.toLowerCase().includes('email')) {
+                        const name = namesToUse.length > 0 ? namesToUse[i % namesToUse.length].toLowerCase().replace(/\s+/g, '.') : `user${i}`;
+                        const domains = ['gmail.com', 'yahoo.com', 'outlook.com', 'icloud.com'];
+                        value = `${name}${Math.floor(Math.random() * 99)}@${domains[Math.floor(Math.random() * domains.length)]}`;
+                    }
+                    // 4. Random fallback for options
                     else if (q.options.length > 0) {
                         const picker = (options: any[]) => {
                             const total = options.reduce((acc, opt) => acc + (opt.weight || 0), 0);
@@ -786,7 +820,21 @@ function App() {
                         };
 
                         if (q.type === 'CHECKBOXES') {
-                            value = [picker(q.options)];
+                            // Pick multiple options - logic improved to pick 1-3 random options based on weights
+                            const numToPick = Math.min(q.options.length, Math.floor(Math.random() * 3) + 1);
+                            const picked: string[] = [];
+                            const available = [...q.options];
+
+                            for (let p = 0; p < numToPick; p++) {
+                                if (available.length === 0) break;
+                                // For simplicity using weighted picker on available pool
+                                const choice = picker(available);
+                                picked.push(choice);
+                                // Remove to avoid duplicates
+                                const idx = available.findIndex(o => o.value === choice);
+                                available.splice(idx, 1);
+                            }
+                            value = picked;
                         } else {
                             value = picker(q.options);
                         }
@@ -795,15 +843,42 @@ function App() {
                     if (value) submissionData[q.entryId] = value;
                 });
 
-                pushLog(`Response #${i + 1}: Relaying to secure endpoint...`);
-                await executeNativeSubmission(url, submissionData);
+                // FORCE EMAIL INJECTION: Always send a valid email address parameter
+                // This fixes issues where the parser might miss the "Collect Emails" setting
+                // Google Forms simply ignores this if it's not needed, but it's critical if it IS needed.
+                if (!submissionData['emailAddress']) {
+                    const name = namesToUse.length > 0 ? namesToUse[i % namesToUse.length].toLowerCase().replace(/\s+/g, '.') : `user${i}`;
+                    submissionData['emailAddress'] = `${name}${Math.floor(Math.random() * 99)}@gmail.com`;
+                }
 
-                successCount++;
+                // --- PRE-SUBMISSION VALIDATION ---
+                const missingFields = analysis.questions
+                    .filter(q => q.required && !submissionData[q.entryId])
+                    .map(q => q.title);
+
+                if (missingFields.length > 0) {
+                    pushLog(`Response #${i + 1}: VALIDATION ERROR - Missing required fields: ${missingFields.join(', ')}`, 'ERROR', successCount);
+                    // Skip this submission but continue the loop
+                    continue;
+                }
+
+                pushLog(`Response #${i + 1}: Relaying to secure endpoint...`);
+                try {
+                    await executeNativeSubmission(url, submissionData);
+                    successCount++;
+                    pushLog(`Response #${i + 1}: Submission recorded.`, 'RUNNING', successCount);
+                } catch (e: any) {
+                    console.error("Submission failed at index", i, e);
+                    pushLog(`Response #${i + 1}: ${e.message || "Relay failure"}`, 'ERROR', successCount);
+                    // If we have many errors in a row, we might want to stop, but for now we continue the loop
+                    // and let the user see the visual red logs.
+                }
 
                 // --- ADAPTIVE COOLDOWN (Safety Fix) ---
                 // Every 15 submissions, add a "System Cooldown" to bypass IP-based rate limiting
-                if (successCount % 15 === 0 && successCount < targetCount) {
-                    const cooldownSecs = 30 + Math.floor(Math.random() * 30);
+                // Every 15 submissions, add a "System Cooldown" to bypass IP-based rate limiting
+                if (successCount % 15 === 0 && successCount < targetCount && successCount > 0) {
+                    const cooldownSecs = 5;
                     pushLog(`IP SAFETY: Automatic cooldown triggered. Waiting ${cooldownSecs}s to prevent blocking...`, 'COOLDOWN');
                     await new Promise(r => setTimeout(r, cooldownSecs * 1000));
                 } else {
@@ -811,12 +886,16 @@ function App() {
                     const jitter = Math.floor(Math.random() * 4000) + 2000;
                     await new Promise(r => setTimeout(r, jitter));
                 }
-
-                pushLog(`Response #${i + 1}: Submission recorded.`, 'RUNNING', successCount);
             }
 
             if (!(window as any).__AF_STOP_SIGNAL) {
-                pushLog('SEQUENCER COMPLETE. All background jobs finished.', 'DONE', targetCount);
+                if (successCount === targetCount && successCount > 0) {
+                    pushLog('SEQUENCER COMPLETE. All background jobs finished.', 'DONE', targetCount);
+                } else if (successCount > 0) {
+                    pushLog(`MISSION FINISHED with issues. ${successCount}/${targetCount} payloads delivered.`, 'DONE', successCount);
+                } else {
+                    pushLog(`MISSION FAILED. 0/${targetCount} payloads delivered. Check network or form settings.`, 'ERROR', 0);
+                }
             } else {
                 pushLog('MISSION PARTIALLY COMPLETED. Intercepted by user.', 'ABORTED', successCount);
             }
@@ -1115,14 +1194,14 @@ function App() {
                                                                 <input
                                                                     type="number"
                                                                     min={1}
-                                                                    max={200}
+                                                                    max={30}
                                                                     value={isNaN(targetCount) ? '' : targetCount}
                                                                     onChange={(e) => {
                                                                         if (e.target.value === '') {
                                                                             setTargetCount(NaN);
                                                                             return;
                                                                         }
-                                                                        const val = Math.min(Number(e.target.value), 200);
+                                                                        const val = Math.min(Number(e.target.value), 30);
                                                                         checkBalanceAndRedirect(val);
                                                                         setTargetCount(val);
                                                                     }}
@@ -1130,7 +1209,7 @@ function App() {
                                                                 />
                                                                 <button
                                                                     onClick={() => {
-                                                                        const newVal = Math.min(200, (targetCount || 0) + 10);
+                                                                        const newVal = Math.min(30, (targetCount || 0) + 10);
                                                                         checkBalanceAndRedirect(newVal);
                                                                         setTargetCount(newVal);
                                                                     }}
@@ -1141,7 +1220,7 @@ function App() {
                                                             </div>
 
                                                             <div className="grid grid-cols-5 gap-2">
-                                                                {[10, 25, 50, 100, 200].map((preset) => (
+                                                                {[5, 10, 15, 20, 30].map((preset) => (
                                                                     <button
                                                                         key={preset}
                                                                         onClick={() => {

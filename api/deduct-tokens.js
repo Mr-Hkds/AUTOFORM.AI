@@ -1,25 +1,7 @@
-const admin = require('firebase-admin');
+import { initializeApp, getApps, cert } from 'firebase-admin/app';
+import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 
-// Initialize Firebase Admin (Singleton pattern)
-if (!admin.apps.length) {
-    try {
-        const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-        admin.initializeApp({
-            credential: admin.credential.cert(serviceAccount)
-        });
-        console.log("Firebase Admin Initialized for Token Deduction");
-    } catch (error) {
-        console.error("Firebase Admin Initialization Error:", error);
-    }
-}
-
-const db = admin.firestore();
-
-/**
- * API Handler for Secure Token Deduction
- * This prevents client-side manipulation of token balances.
- */
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
     // CORS headers for local and production
     res.setHeader('Access-Control-Allow-Credentials', true);
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -44,6 +26,28 @@ module.exports = async (req, res) => {
         return res.status(400).json({ error: 'Invalid request parameters' });
     }
 
+    // --- FIREBASE ADMIN INITIALIZATION (Consistent with verify-payment.js) ---
+    let db = null;
+    if (getApps().length === 0 && process.env.FIREBASE_SERVICE_ACCOUNT) {
+        try {
+            const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+            initializeApp({
+                credential: cert(serviceAccount)
+            });
+            console.log("[API] Firebase Admin Initialized");
+            db = getFirestore();
+        } catch (error) {
+            console.error('[API] Failed to initialize Firebase Admin:', error);
+            // Critical error, we can't proceed
+            return res.status(500).json({ error: 'Server configuration error' });
+        }
+    } else if (getApps().length > 0) {
+        db = getFirestore();
+    } else {
+        console.error('[API] Missing FIREBASE_SERVICE_ACCOUNT env var');
+        return res.status(500).json({ error: 'Server configuration error: Missing credentials' });
+    }
+
     try {
         const userRef = db.collection('users').doc(uid);
 
@@ -63,24 +67,26 @@ module.exports = async (req, res) => {
 
             // Perform Atomic Deduction
             transaction.update(userRef, {
-                tokens: admin.firestore.FieldValue.increment(-amount),
-                responsesUsed: admin.firestore.FieldValue.increment(amount)
+                tokens: FieldValue.increment(-amount),
+                responsesUsed: FieldValue.increment(amount)
             });
 
             return { success: true, newTokens: currentTokens - amount };
         });
 
         if (result.success) {
+            console.log(`[API] Deducted ${amount} tokens for ${uid}. Remaining: ${result.newTokens}`);
             return res.status(200).json(result);
         } else {
+            console.warn(`[API] Deduction refused: ${result.error}`);
             return res.status(403).json(result);
         }
 
     } catch (error) {
-        console.error('Secure Token Deduction Error:', error);
+        console.error('[API] Secure Token Deduction Error:', error);
         return res.status(500).json({
             error: 'Failed to process token deduction',
             message: error.message
         });
     }
-};
+}

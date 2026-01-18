@@ -12,62 +12,62 @@ interface PaymentModalProps {
 
 const TOKEN_PACKS = [
     {
-        id: 'starter',
-        name: 'Starter',
-        tokens: 70,
-        price: 49,
-        icon: Zap,
+        id: 'just_try',
+        name: 'Just Try',
+        tokens: 20,
+        price: 9,
+        icon: Coins,
         color: 'from-blue-600 to-blue-900',
         textColor: 'text-blue-200',
         border: 'border-blue-500/50',
-        pricePerToken: 0.70
+        pricePerToken: 0.45
     },
     {
-        id: 'student',
-        name: 'Student',
-        tokens: 150,
-        price: 99,
+        id: 'student_stash',
+        name: 'Student Stash',
+        tokens: 70,
+        price: 29,
         popular: true,
-        popularLabel: 'Most Popular',
-        icon: Crown,
-        color: 'from-indigo-600 to-indigo-900',
-        textColor: 'text-indigo-200',
-        border: 'border-indigo-500/50',
-        pricePerToken: 0.66,
-        savings: '6% OFF'
-    },
-    {
-        id: 'professional',
-        name: 'Professional',
-        tokens: 250,
-        price: 149,
-        icon: ShieldCheck,
-        color: 'from-amber-600 to-amber-800',
+        popularLabel: 'Student Choice',
+        icon: Zap,
+        color: 'from-amber-600 to-amber-900',
         textColor: 'text-amber-200',
         border: 'border-amber-500/50',
-        pricePerToken: 0.60,
-        savings: '15% OFF'
+        pricePerToken: 0.41,
+        savings: '10% OFF'
     },
     {
-        id: 'ultimate',
-        name: 'Ultimate',
-        tokens: 400,
-        price: 199,
+        id: 'power_user',
+        name: 'Power User',
+        tokens: 250,
+        price: 89,
+        icon: Crown,
+        color: 'from-indigo-600 to-indigo-800',
+        textColor: 'text-indigo-200',
+        border: 'border-indigo-500/50',
+        pricePerToken: 0.35,
+        savings: '22% OFF'
+    },
+    {
+        id: 'pro_max',
+        name: 'Pro Max',
+        tokens: 500,
+        price: 149,
         popular: true,
         popularLabel: 'Best Value',
         icon: ShieldCheck,
         color: 'from-emerald-600 to-emerald-900',
         textColor: 'text-emerald-200',
         border: 'border-emerald-500/50',
-        pricePerToken: 0.50,
-        savings: '30% OFF'
+        pricePerToken: 0.29,
+        savings: '35% OFF'
     }
 ];
 
 const PaymentModal: React.FC<PaymentModalProps> = ({ onClose, user }) => {
     // Step 1: Select Pack, Step 2: Razorpay Payment
     const [step, setStep] = useState<1 | 2>(1);
-    const [selectedPack, setSelectedPack] = useState(TOKEN_PACKS[1]); // Default to Student (₹99) - Most Popular
+    const [selectedPack, setSelectedPack] = useState(TOKEN_PACKS[1]); // Default to Student Stash (₹29)
 
     const [loading, setLoading] = useState(false);
     // checking state removed (manual payment deprecated)

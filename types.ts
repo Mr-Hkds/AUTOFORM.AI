@@ -32,6 +32,7 @@ export interface FormAnalysis {
   description: string;
   questions: FormQuestion[];
   aiReasoning: string;
+  hiddenFields?: Record<string, string>; // Added for submitting hidden inputs like fbzx
 }
 
 export interface ScriptConfig {

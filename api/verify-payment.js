@@ -106,15 +106,17 @@ export default async function handler(req, res) {
                 console.log(`Crediting tokens to user: ${userId}`);
 
                 // Determine tokens based on amount (Server-Side Validation)
-                // ₹49 -> 70 tokens, ₹99 -> 150 tokens, ₹149 -> 250 tokens, ₹199 -> 400 tokens
-                // We use Math.floor/round to handle potential float issues, but amount is usually exact int
+                // New Dirt Cheap Pricing:
+                // ₹9 -> 20 tokens (Just Try)
+                // ₹29 -> 70 tokens (Student Stash)
+                // ₹89 -> 250 tokens (Power User)
+                // ₹149 -> 500 tokens (Pro Max)
                 let tokensToCredit = 0;
 
-                // Flexible pricing check (allowing small margin for error or currency conversion if any)
-                if (amount >= 49 && amount < 60) tokensToCredit = 70;      // Starter
-                else if (amount >= 99 && amount < 120) tokensToCredit = 150; // Student
-                else if (amount >= 149 && amount < 170) tokensToCredit = 250; // Professional
-                else if (amount >= 199) tokensToCredit = 400;               // Ultimate
+                if (amount >= 9 && amount < 20) tokensToCredit = 20;
+                else if (amount >= 29 && amount < 50) tokensToCredit = 70;
+                else if (amount >= 89 && amount < 120) tokensToCredit = 250;
+                else if (amount >= 149) tokensToCredit = 500;
                 else {
                     // Fallback or custom amount logic
                     console.warn(`Amount ₹${amount} does not match standard packs. calculating pro-rata? No, skipping.`);
