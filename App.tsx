@@ -751,6 +751,12 @@ function App() {
 
       // ACCURATE TOKEN DEDUCTION: Only deduct what was actually sent
       if (successCount > 0) {
+        // [FIX] Lock visual state to current high value so Header doesn't snap down
+        // The MissionControl animation will smoothly decrement this via setVisualTokenOverride
+        if (user && user.tokens) {
+          setVisualTokenOverride(user.tokens);
+        }
+
         const result = await incrementUsageCount(user.uid, successCount);
         if (result.success && typeof result.newTokens === 'number') {
           // Optimistic state update for Header

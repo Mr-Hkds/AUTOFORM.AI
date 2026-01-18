@@ -98,6 +98,28 @@ export const subscribeToUserProfile = (uid: string, callback: (user: User | null
 
 export const deductTokens = async (uid: string, amount: number): Promise<{ success: boolean; newTokens?: number }> => {
     try {
+        // DEV MODE: Direct Firestore Update (Persistence Fix)
+        if (import.meta.env.DEV) {
+            console.log("[AuthService] Dev Mode: Deducting tokens directly via Firestore...");
+            const userRef = doc(db, COLLECTION, uid);
+            const userSnap = await getDoc(userRef);
+
+            if (userSnap.exists()) {
+                const currentTokens = userSnap.data().tokens || 0;
+                if (currentTokens >= amount) {
+                    await updateDoc(userRef, {
+                        tokens: increment(-amount)
+                    });
+                    return { success: true, newTokens: currentTokens - amount };
+                } else {
+                    console.error("[AuthService] Insufficient tokens");
+                    return { success: false };
+                }
+            }
+            return { success: false };
+        }
+
+        // PROD MODE: Secure Server Call
         // SECURITY: Call server-side endpoint to prevent client-side manipulation
         const response = await fetch('/api/deduct-tokens', {
             method: 'POST',
