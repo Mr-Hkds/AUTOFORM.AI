@@ -25,12 +25,12 @@ export default defineConfig(({ mode }) => {
               req.on('end', async () => {
                 try {
                   const { uid, amount } = JSON.parse(body);
-                  // In local simulation, we just return success but don't actually modify Firestore 
-                  // (App.tsx will handle optimistic update if we return success)
-                  // Or better: We can't easily use Admin SDK here, so we tell the client it was okay.
+                  // In local simulation, we calculate what the tokens WOULD be
+                  // This allows the UI to show the deduction correctly even without a real DB update
+                  const newTokens = Math.max(0, 100 - amount); // Mock balance of 100 for dev
                   res.setHeader('Content-Type', 'application/json');
                   res.statusCode = 200;
-                  res.end(JSON.stringify({ success: true, newTokens: 'SIMULATED' }));
+                  res.end(JSON.stringify({ success: true, newTokens }));
                 } catch (error) {
                   res.statusCode = 500;
                   res.end(JSON.stringify({ error: error.message }));

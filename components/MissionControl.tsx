@@ -17,9 +17,10 @@ interface MissionControlProps {
     onNewMission: () => void;
     formTitle: string;
     onShowPricing?: () => void;
+    onTokenUpdate?: (val: number) => void;
 }
 
-const MissionControl: React.FC<MissionControlProps> = ({ logs, targetCount, initialTokens, onAbort, onBackToConfig, onNewMission, formTitle, onShowPricing }) => {
+const MissionControl: React.FC<MissionControlProps> = ({ logs, targetCount, initialTokens, onAbort, onBackToConfig, onNewMission, formTitle, onShowPricing, onTokenUpdate }) => {
     const [elapsedTime, setElapsedTime] = useState(0);
     const [tokenPhase, setTokenPhase] = useState<'IDLE' | 'REDUCING' | 'DONE'>('IDLE');
     const [displayedTokens, setDisplayedTokens] = useState(initialTokens);
@@ -99,6 +100,7 @@ const MissionControl: React.FC<MissionControlProps> = ({ logs, targetCount, init
 
                     if (current !== lastValue) {
                         setDisplayedTokens(current);
+                        if (onTokenUpdate) onTokenUpdate(current);
                         setIsTicking(true);
                         setTimeout(() => setIsTicking(false), 50);
                         lastValue = current;

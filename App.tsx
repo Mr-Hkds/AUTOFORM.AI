@@ -263,6 +263,7 @@ function App() {
   // AUTOMATION STATE
   const [isAutoRunning, setIsAutoRunning] = useState(false);
   const [automationLogs, setAutomationLogs] = useState<any[]>([]);
+  const [visualTokenOverride, setVisualTokenOverride] = useState<number | null>(null);
 
   useEffect(() => {
     const handleMissionUpdate = (event: MessageEvent) => {
@@ -886,6 +887,7 @@ function App() {
     setError(null);
     setAutomationLogs([]);
     setShowAdminDashboard(false);
+    setVisualTokenOverride(null);
   };
 
   // REMOVED BLOCKING LOGIN CHECK
@@ -911,14 +913,9 @@ function App() {
 
       {/* Floating Header */}
       <Header
-        reset={() => {
-          setStep(1);
-          setAnalysis(null);
-          setUrl('');
-          setParsingError(null);
-        }}
+        reset={reset}
         step={step}
-        user={user}
+        user={visualTokenOverride !== null ? (user ? { ...user, tokens: visualTokenOverride } : user) : user}
         loading={authLoading}
         onLogout={handleLogout}
         onShowPricing={() => setShowPricing(true)}
@@ -1379,7 +1376,9 @@ function App() {
                       initialTokens={user?.tokens || 0}
                       formTitle={analysis?.title || 'Form Analysis Result'}
                       onAbort={handleAbort}
+                      onTokenUpdate={setVisualTokenOverride}
                       onBackToConfig={() => {
+                        setVisualTokenOverride(null);
                         setAutomationLogs([]);
                         setStep(2);
                       }}
