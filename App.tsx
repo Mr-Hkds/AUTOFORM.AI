@@ -21,6 +21,7 @@ import VideoModal from './components/VideoModal';
 import MissionControl from './components/MissionControl';
 import Header from './components/Header';
 import PremiumBackground from './components/PremiumBackground';
+import LegalPage from './components/LegalPage';
 import MatrixReveal from './components/MatrixReveal'; // Imported MatrixReveal
 
 // --- VISUAL COMPONENTS ---
@@ -148,7 +149,7 @@ const RecommendationModal = ({ onClose, onSelect }: { onClose: () => void, onSel
 // --- APP COMPONENTS ---
 
 
-const Footer = () => (
+const Footer = ({ onLegalNav }: { onLegalNav: (type: 'privacy' | 'terms' | 'refund' | 'contact' | null) => void }) => (
     <footer className="w-full py-12 mt-auto border-t border-white/5 relative z-10 bg-black overflow-hidden mb-20 md:mb-0">
         <div className="max-w-6xl mx-auto px-6 flex flex-col items-center justify-center relative z-10">
 
@@ -174,9 +175,34 @@ const Footer = () => (
 
             {/* Links - Minimalist */}
             <div className="flex items-center gap-8 text-[9px] text-slate-600 font-medium tracking-widest uppercase mb-8">
-                <span className="hover:text-white transition-colors cursor-pointer hover:underline underline-offset-4 decoration-amber-500/50">Privacy Protocol</span>
-                <span className="hover:text-white transition-colors cursor-pointer hover:underline underline-offset-4 decoration-amber-500/50">Service Terms</span>
-                <a href="mailto:NAAGRAAZPRODUCTION@GMAIL.COM" className="hover:text-white transition-colors cursor-pointer hover:underline underline-offset-4 decoration-amber-500/50">Support Channel</a>
+                <a
+                    href="/privacy-policy"
+                    onClick={(e) => { e.preventDefault(); onLegalNav('privacy'); }}
+                    className="hover:text-white transition-colors cursor-pointer hover:underline underline-offset-4 decoration-amber-500/50"
+                >
+                    Privacy Protocol
+                </a>
+                <a
+                    href="/terms-of-service"
+                    onClick={(e) => { e.preventDefault(); onLegalNav('terms'); }}
+                    className="hover:text-white transition-colors cursor-pointer hover:underline underline-offset-4 decoration-amber-500/50"
+                >
+                    Service Terms
+                </a>
+                <a
+                    href="/refund-policy"
+                    onClick={(e) => { e.preventDefault(); onLegalNav('refund'); }}
+                    className="hover:text-white transition-colors cursor-pointer hover:underline underline-offset-4 decoration-amber-500/50"
+                >
+                    Refund Policy
+                </a>
+                <a
+                    href="/contact-us"
+                    onClick={(e) => { e.preventDefault(); onLegalNav('contact'); }}
+                    className="hover:text-white transition-colors cursor-pointer hover:underline underline-offset-4 decoration-amber-500/50"
+                >
+                    Contact Us
+                </a>
             </div>
 
             {/* Disclaimer Section - System Alert Style */}
@@ -240,6 +266,7 @@ function App() {
 
     const [showAdminDashboard, setShowAdminDashboard] = useState(false);
     const [showRecommendationModal, setShowRecommendationModal] = useState(false);
+    const [legalType, setLegalType] = useState<'privacy' | 'terms' | 'refund' | 'contact' | null>(null);
 
     // App State
     const [url, setUrl] = useState('');
@@ -292,6 +319,46 @@ function App() {
         window.addEventListener('message', handleMissionUpdate);
         return () => window.removeEventListener('message', handleMissionUpdate);
     }, []);
+
+    useEffect(() => {
+        // Detect Legal Pages via URL
+        const path = window.location.pathname;
+        if (path === '/privacy-policy') setLegalType('privacy');
+        else if (path === '/terms-of-service') setLegalType('terms');
+        else if (path === '/refund-policy') setLegalType('refund');
+        else if (path === '/contact-us') setLegalType('contact');
+
+        // Handle browser back/forward
+        const handlePopState = () => {
+            const newPath = window.location.pathname;
+            if (newPath === '/privacy-policy') setLegalType('privacy');
+            else if (newPath === '/terms-of-service') setLegalType('terms');
+            else if (newPath === '/refund-policy') setLegalType('refund');
+            else if (newPath === '/contact-us') setLegalType('contact');
+            else setLegalType(null);
+        };
+
+        window.addEventListener('popstate', handlePopState);
+        return () => window.removeEventListener('popstate', handlePopState);
+    }, []);
+
+    const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    const handleLegalNav = (type: 'privacy' | 'terms' | 'refund' | 'contact' | null) => {
+        setLegalType(type);
+        if (type) {
+            const urls = {
+                privacy: '/privacy-policy',
+                terms: '/terms-of-service',
+                refund: '/refund-policy',
+                contact: '/contact-us'
+            };
+            window.history.pushState({}, '', urls[type]);
+        } else {
+            window.history.pushState({}, '', '/');
+        }
+        scrollToTop();
+    };
 
     const handleAbort = () => {
         (window as any).__AF_STOP_SIGNAL = true;
@@ -942,7 +1009,9 @@ function App() {
                     />
                 ) : (
                     <>
-                        {showAdminDashboard && user?.isAdmin ? (
+                        {legalType ? (
+                            <LegalPage type={legalType} onBack={() => handleLegalNav(null)} />
+                        ) : showAdminDashboard && user?.isAdmin ? (
                             <AdminDashboard user={user} onBack={() => setShowAdminDashboard(false)} />
                         ) : (
                             <>
@@ -1412,7 +1481,7 @@ function App() {
                 )}
             </main>
 
-            {!loading && <Footer />}
+            {!loading && <Footer onLegalNav={handleLegalNav} />}
         </div >
     );
 }
