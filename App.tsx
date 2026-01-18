@@ -289,15 +289,15 @@ function App() {
 
   const handleAbort = () => {
     (window as any).__AF_STOP_SIGNAL = true;
-    setAutomationLogs(prev => [...prev, { msg: '🛑 MISSION ABORTED BY USER. THREADS TERMINATING...', status: 'ERROR', timestamp: Date.now(), count: prev.length > 0 ? prev[prev.length - 1].count : 0 }]);
+    setAutomationLogs(prev => [...prev, { msg: 'MISSION ABORTED BY USER. TERMINATING THREADS...', status: 'ERROR', timestamp: Date.now(), count: prev.length > 0 ? prev[prev.length - 1].count : 0 }]);
   };
 
 
 
   const loadingMessages = [
-    "Establishing Secure Handshake...",
-    "Syncing with Neural Core...",
-    "Calibrating System Optics...",
+    "Initializing Secure Handshake...",
+    "Synchronizing Neural Core...",
+    "Calibrating Optical Systems...",
     "Finalizing Protocol Links...",
     "Accessing Mission Terminal..."
   ];
@@ -351,7 +351,7 @@ function App() {
 
   const checkBalanceAndRedirect = (val: number) => {
     if (user && val > (user.tokens || 0)) {
-      setError("⚠️ Token Limit Exceeded: You don't have enough tokens. Redirecting to upgrades...");
+      setError("Token Limit Exceeded: Insufficient balance. Redirecting to upgrades...");
       setTimeout(() => {
         setShowPricing(true);
       }, 1500);
@@ -1021,7 +1021,7 @@ function App() {
                             <div className="flex flex-col gap-6">
                               <div className="flex items-center gap-4">
                                 <button
-                                  onClick={() => setTargetCount(Math.max(1, targetCount - 10))}
+                                  onClick={() => setTargetCount(Math.max(1, (targetCount || 0) - 10))}
                                   className="w-14 h-14 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center font-bold text-2xl transition-all active:scale-90 border border-slate-700"
                                 >
                                   −
@@ -1030,9 +1030,13 @@ function App() {
                                   type="number"
                                   min={1}
                                   max={200}
-                                  value={targetCount}
+                                  value={isNaN(targetCount) ? '' : targetCount}
                                   onChange={(e) => {
-                                    const val = Math.min(Math.max(1, Number(e.target.value) || 1), 200);
+                                    if (e.target.value === '') {
+                                      setTargetCount(NaN);
+                                      return;
+                                    }
+                                    const val = Math.min(Number(e.target.value), 200);
                                     checkBalanceAndRedirect(val);
                                     setTargetCount(val);
                                   }}
@@ -1040,7 +1044,7 @@ function App() {
                                 />
                                 <button
                                   onClick={() => {
-                                    const newVal = Math.min(200, targetCount + 10);
+                                    const newVal = Math.min(200, (targetCount || 0) + 10);
                                     checkBalanceAndRedirect(newVal);
                                     setTargetCount(newVal);
                                   }}
