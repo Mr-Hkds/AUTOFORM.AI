@@ -739,7 +739,7 @@ function App() {
           await new Promise(r => setTimeout(r, jitter));
         }
 
-        pushLog(`✅ Response #${i + 1}: Submission recorded.`, i + 1 === targetCount ? 'DONE' : 'RUNNING', successCount);
+        pushLog(`✅ Response #${i + 1}: Submission recorded.`, 'RUNNING', successCount);
       }
 
       if (!(window as any).__AF_STOP_SIGNAL) {
@@ -750,7 +750,7 @@ function App() {
 
       // ACCURATE TOKEN DEDUCTION: Only deduct what was actually sent
       if (successCount > 0) {
-        incrementUsageCount(user.uid, successCount);
+        await incrementUsageCount(user.uid, successCount);
       }
 
       (window as any).__AF_STOP_SIGNAL = false;
@@ -818,6 +818,8 @@ function App() {
     // We update the state so handleCopy picks it up
     setCustomResponses(mergedResponses);
 
+    setAutomationLogs([]);
+
     // --- OPTIMIZED TRANSITION FLOW ---
     setIsTransitioning(true);
 
@@ -878,6 +880,7 @@ function App() {
     setUrl('');
     setAnalysis(null);
     setError(null);
+    setAutomationLogs([]);
     setShowAdminDashboard(false);
   };
 
@@ -1365,9 +1368,13 @@ function App() {
                     <MissionControl
                       logs={automationLogs}
                       targetCount={targetCount}
+                      initialTokens={user?.tokens || 0}
                       formTitle={analysis?.title || 'Form Analysis Result'}
                       onAbort={handleAbort}
-                      onBackToConfig={() => setStep(2)}
+                      onBackToConfig={() => {
+                        setAutomationLogs([]);
+                        setStep(2);
+                      }}
                       onNewMission={reset}
                     />
                     <div className="mt-12 opacity-50 hover:opacity-100 transition-opacity">

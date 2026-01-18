@@ -33,7 +33,7 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ progress, percentage }) =
     }, []);
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#000000] font-mono select-none overflow-hidden">
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-[#000000] font-mono select-none overflow-hidden pt-24">
             {/* Minimal Background Elements */}
             <div className="absolute inset-0 opacity-20 pointer-events-none">
                 <div className="absolute top-0 left-0 w-full h-[1px] bg-amber-500/30 shadow-[0_0_10px_rgba(245,158,11,0.5)]" style={{ transform: `translateY(${scanlineOffset}vh)` }} />

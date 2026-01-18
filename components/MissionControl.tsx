@@ -11,6 +11,7 @@ interface MissionLog {
 interface MissionControlProps {
     logs: MissionLog[];
     targetCount: number;
+    initialTokens: number;
     onAbort: () => void;
     onBackToConfig: () => void;
     onNewMission: () => void;
@@ -18,8 +19,12 @@ interface MissionControlProps {
     onShowPricing?: () => void;
 }
 
-const MissionControl: React.FC<MissionControlProps> = ({ logs, targetCount, onAbort, onBackToConfig, onNewMission, formTitle, onShowPricing }) => {
+const MissionControl: React.FC<MissionControlProps> = ({ logs, targetCount, initialTokens, onAbort, onBackToConfig, onNewMission, formTitle, onShowPricing }) => {
     const [elapsedTime, setElapsedTime] = useState(0);
+    const [tokenPhase, setTokenPhase] = useState<'IDLE' | 'REDUCING' | 'DONE'>('IDLE');
+    const [displayedTokens, setDisplayedTokens] = useState(initialTokens);
+    const [isTicking, setIsTicking] = useState(false);
+    const startTokensRef = useRef(initialTokens);
     const containerRef = useRef<HTMLDivElement>(null);
     const logContainerRef = useRef<HTMLDivElement>(null);
     const logEndRef = useRef<HTMLDivElement>(null);
@@ -28,17 +33,21 @@ const MissionControl: React.FC<MissionControlProps> = ({ logs, targetCount, onAb
     const currentStatus = logs.length > 0 ? logs[logs.length - 1].status : 'INITIALIZING';
     const progress = (currentCount / targetCount) * 100;
 
-    // Timer tracking
+    // Scroll to top on mount
     useEffect(() => {
-        // Stop timer if "DONE", "ABORTED", OR if settling (implied by progress = 100 but status might be 'RUNNING' initially)
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, []);
+
+    // Timer
+    useEffect(() => {
         if (currentStatus === 'DONE' || currentStatus === 'ERROR' || currentStatus === 'ABORTED') return;
 
-        const start = Date.now() - (elapsedTime * 1000);
+        const start = Date.now() - (elapsedTime * 1000); // Resume from previous if needed
         const interval = setInterval(() => {
             setElapsedTime(Math.floor((Date.now() - start) / 1000));
         }, 1000);
         return () => clearInterval(interval);
-    }, [currentStatus]); // Removed logic dependency on elapsedTime to prevent re-renders
+    }, [currentStatus]);
 
     // Auto-scroll logs without jumping the whole page (direct container manipulation)
     useEffect(() => {
@@ -47,14 +56,67 @@ const MissionControl: React.FC<MissionControlProps> = ({ logs, targetCount, onAb
         }
     }, [logs]);
 
-    // Center viewport on completion/abort
+    // Center viewport on completion start/abort
     useEffect(() => {
-        if (currentStatus === 'DONE' || currentStatus === 'ABORTED') {
+        if (tokenPhase === 'REDUCING' || currentStatus === 'ABORTED') {
             setTimeout(() => {
-                containerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }, 300); // Slight delay for the overlay animation to start
+                const element = containerRef.current;
+                if (element) {
+                    const rect = element.getBoundingClientRect();
+                    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                    const finalTop = rect.top + scrollTop - (window.innerHeight / 2) + (rect.height / 2);
+                    window.scrollTo({ top: finalTop, behavior: 'smooth' });
+                }
+            }, 100);
         }
-    }, [currentStatus]);
+    }, [tokenPhase, currentStatus]);
+
+    // 1. Trigger Reduction Phase
+    useEffect(() => {
+        if (currentStatus === 'DONE' && tokenPhase === 'IDLE') {
+            setTokenPhase('REDUCING');
+        }
+    }, [currentStatus, tokenPhase]);
+
+    // 2. Execute Animation Loop (Run ONLY when phase becomes REDUCING)
+    useEffect(() => {
+        if (tokenPhase === 'REDUCING') {
+            const startDelay = setTimeout(() => {
+                const startValue = startTokensRef.current;
+                const endValue = startValue - targetCount;
+                const duration = 2500;
+                const startTime = Date.now();
+
+                let lastValue = startValue;
+
+                const animateTools = () => {
+                    const now = Date.now();
+                    const timeProgress = Math.min((now - startTime) / duration, 1);
+
+                    // Ease out expo
+                    const easeOut = timeProgress === 1 ? 1 : 1 - Math.pow(2, -10 * timeProgress);
+                    const current = Math.floor(startValue - (targetCount * easeOut));
+
+                    if (current !== lastValue) {
+                        setDisplayedTokens(current);
+                        setIsTicking(true);
+                        setTimeout(() => setIsTicking(false), 50);
+                        lastValue = current;
+                    }
+
+                    if (timeProgress < 1) {
+                        requestAnimationFrame(animateTools);
+                    } else {
+                        setDisplayedTokens(endValue);
+                        setTimeout(() => setTokenPhase('DONE'), 1000);
+                    }
+                };
+                requestAnimationFrame(animateTools);
+            }, 1500);
+
+            return () => clearTimeout(startDelay);
+        }
+    }, [tokenPhase, targetCount]);
 
     const formatTime = (s: number) => {
         const mins = Math.floor(s / 60);
@@ -67,16 +129,51 @@ const MissionControl: React.FC<MissionControlProps> = ({ logs, targetCount, onAb
             ref={containerRef}
             className="w-full max-w-5xl mx-auto space-y-8 animate-fade-in-up relative scroll-mt-20"
         >
+            {/* TOKEN REDUCTION OVERLAY */}
+            {tokenPhase === 'REDUCING' && (
+                <div className="absolute inset-0 z-[110] flex flex-col items-center justify-center bg-[#020617]/95 backdrop-blur-2xl animate-fade-in border border-amber-500/10 rounded-2xl">
+                    <div className="text-center space-y-8 max-w-md px-6">
+                        <div className="flex justify-center">
+                            <div className="relative">
+                                <div className="absolute inset-0 bg-amber-500/20 blur-2xl rounded-full animate-pulse" />
+                                <div className="relative bg-black border border-amber-500/20 p-8 rounded-full shadow-[0_0_30px_rgba(245,158,11,0.1)]">
+                                    <Crown className="w-12 h-12 text-amber-500 animate-bounce" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <p className="text-amber-500/60 font-mono text-[10px] uppercase tracking-[0.4em] mb-4">Neural Resource Deduction</p>
+                            <div className="flex flex-col items-center">
+                                <span className={`text-7xl font-mono font-bold text-white tracking-tighter tabular-nums drop-shadow-[0_0_20px_rgba(245,158,11,0.3)] transition-transform duration-75 ${isTicking ? 'scale-110 text-amber-400' : 'scale-100'}`}>
+                                    {displayedTokens}
+                                </span>
+                                <div className="flex items-center gap-2 mt-2">
+                                    <div className="h-[2px] w-8 bg-red-500/50 rounded-full" />
+                                    <span className="text-red-500 font-mono font-bold text-sm">-{targetCount} Units</span>
+                                    <div className="h-[2px] w-8 bg-red-500/50 rounded-full" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <p className="text-slate-400 text-xs font-mono animate-pulse">
+                            Finalizing secure handshake & anchoring data...
+                        </p>
+                    </div>
+                </div>
+            )}
+
             {/* SUCCESS OVERLAY */}
-            {currentStatus === 'DONE' && (
+            {tokenPhase === 'DONE' && (
                 <div className="absolute inset-0 z-[100] flex flex-col items-center justify-center bg-[#020617]/90 backdrop-blur-xl animate-fade-in border border-emerald-500/20 rounded-2xl shadow-[0_0_100px_rgba(16,185,129,0.1)]">
                     <div className="mb-8 relative">
-                        <div className="absolute inset-0 bg-emerald-500/20 blur-3xl rounded-full" />
+                        <div className="absolute inset-0 bg-emerald-500/10 blur-3xl rounded-full pointer-events-none" />
                         <div className="relative bg-emerald-500/20 p-6 rounded-full border border-emerald-500/30">
                             <CheckCircle className="w-16 h-16 text-emerald-500" />
                         </div>
                     </div>
-                    <h2 className="text-4xl font-serif font-bold text-white mb-4 tracking-tight text-center">Task Completed Successfully</h2>
+
+                    <h2 className="text-4xl font-serif font-bold text-white mb-4 tracking-tight text-center px-4">Task Completed Successfully</h2>
                     <div className="flex flex-col items-center gap-2 mb-10 text-center px-12">
                         <p className="text-emerald-400 font-mono text-xs uppercase tracking-[0.3em] font-bold">
                             Total Duration: {logs.length > 1 ? Math.floor((logs[logs.length - 1].timestamp - logs[0].timestamp) / 1000) : elapsedTime} Seconds
@@ -84,23 +181,18 @@ const MissionControl: React.FC<MissionControlProps> = ({ logs, targetCount, onAb
                         <p className="text-slate-400 text-sm max-w-md leading-relaxed">
                             The automation process has successfully submitted all {targetCount} form entries. The operation is now finished and all records have been anchored.
                         </p>
+                        <div className="mt-4 flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 shadow-inner">
+                            <Crown className="w-4 h-4 text-emerald-500" />
+                            <span className="text-xs font-mono text-emerald-200">Final Balance: {startTokensRef.current - targetCount} Units</span>
+                        </div>
                     </div>
-                    <div className="flex flex-wrap justify-center gap-4">
+                    <div className="flex gap-4">
                         <button
                             onClick={onNewMission}
                             className="group relative px-8 py-4 bg-emerald-600 text-white font-bold uppercase text-xs tracking-[0.2em] rounded-xl hover:bg-emerald-500 transition-all shadow-lg active:scale-95"
                         >
                             Initialize New Sequence
                         </button>
-                        {onShowPricing && (
-                            <button
-                                onClick={onShowPricing}
-                                className="px-8 py-4 bg-amber-500/10 border border-amber-500/30 text-amber-500 font-bold uppercase text-xs tracking-[0.2em] rounded-xl hover:bg-amber-500/20 transition-all active:scale-95 flex items-center gap-2"
-                            >
-                                <Crown className="w-4 h-4" />
-                                Refill Tokens
-                            </button>
-                        )}
                         <button
                             onClick={onBackToConfig}
                             className="px-8 py-4 bg-white/5 border border-white/10 text-slate-300 font-bold uppercase text-xs tracking-[0.2em] rounded-xl hover:bg-white/10 transition-all active:scale-95"
@@ -114,12 +206,6 @@ const MissionControl: React.FC<MissionControlProps> = ({ logs, targetCount, onAb
             {/* ABORTED OVERLAY */}
             {currentStatus === 'ABORTED' && (
                 <div className="absolute inset-0 z-[100] flex flex-col items-center justify-center bg-[#000000]/95 backdrop-blur-3xl animate-fade-in border border-red-500/20 rounded-2xl shadow-[0_0_100px_rgba(239,68,68,0.1)]">
-                    <div className="mb-8 relative">
-                        <div className="absolute inset-0 bg-red-500/20 blur-3xl rounded-full" />
-                        <div className="relative bg-red-500/20 p-6 rounded-full border border-red-500/30">
-                            <AlertCircle className="w-16 h-16 text-red-500" />
-                        </div>
-                    </div>
                     <h2 className="text-4xl font-serif font-bold text-white mb-4 tracking-tight text-center text-red-100">Mission Aborted</h2>
                     <div className="flex flex-col items-center gap-2 mb-10 text-center px-12">
                         <p className="text-red-400 font-mono text-xs uppercase tracking-[0.3em] font-bold">
@@ -129,22 +215,13 @@ const MissionControl: React.FC<MissionControlProps> = ({ logs, targetCount, onAb
                             The operation was manually terminated. Only {currentCount} of {targetCount} payloads were deployed. No further data will be transmitted.
                         </p>
                     </div>
-                    <div className="flex flex-wrap justify-center gap-4">
+                    <div className="flex gap-4">
                         <button
                             onClick={onBackToConfig}
                             className="group relative px-8 py-4 bg-amber-600 text-white font-bold uppercase text-xs tracking-[0.2em] rounded-xl hover:bg-amber-500 transition-all shadow-lg active:scale-95"
                         >
                             Adjust Configuration
                         </button>
-                        {onShowPricing && (
-                            <button
-                                onClick={onShowPricing}
-                                className="px-8 py-4 bg-amber-500/10 border border-amber-500/30 text-amber-500 font-bold uppercase text-xs tracking-[0.2em] rounded-xl hover:bg-amber-500/20 transition-all active:scale-95 flex items-center gap-2"
-                            >
-                                <Crown className="w-4 h-4" />
-                                Refill Tokens
-                            </button>
-                        )}
                         <button
                             onClick={onNewMission}
                             className="px-8 py-4 bg-white/5 border border-white/10 text-slate-300 font-bold uppercase text-xs tracking-[0.2em] rounded-xl hover:bg-white/10 transition-all active:scale-95"
@@ -194,10 +271,10 @@ const MissionControl: React.FC<MissionControlProps> = ({ logs, targetCount, onAb
                                         'bg-amber-500 shadow-[0_0_10px_#f59e0b]'}`}
                             />
                             <span className={`text-[10px] font-mono uppercase tracking-[0.2em] font-bold 
-                                ${currentStatus === 'DONE' ? 'text-emerald-500' :
+                                ${tokenPhase !== 'IDLE' ? 'text-emerald-500' :
                                     currentStatus === 'ABORTED' ? 'text-red-500' :
                                         'text-amber-500'}`}>
-                                {currentStatus === 'DONE' ? 'Mission Complete' :
+                                {tokenPhase !== 'IDLE' ? 'Mission Complete' :
                                     currentStatus === 'ABORTED' ? 'Mission Interrupted' :
                                         'Mission Active'}
                             </span>
@@ -229,18 +306,20 @@ const MissionControl: React.FC<MissionControlProps> = ({ logs, targetCount, onAb
                             Back to Config
                         </button>
                     ) : (
-                        <button
-                            onClick={onAbort}
-                            className="group flex items-center gap-2 px-6 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-500 text-xs font-bold uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all duration-300"
-                        >
-                            <AlertCircle className="w-4 h-4" />
-                            Abort Mission
-                        </button>
+                        <div className="flex flex-col items-end gap-2">
+                            <button
+                                onClick={onAbort}
+                                className="group flex items-center gap-2 px-6 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-500 text-xs font-bold uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all duration-300 shadow-lg shadow-red-500/5 active:scale-95"
+                            >
+                                <AlertCircle className="w-4 h-4" />
+                                Abort Mission
+                            </button>
+                        </div>
                     )}
                 </div>
             </div>
 
-            {/* ACTIVE MONITORING DISCLAIMER */}
+            {/* ACTIVE MONITORING DISCLAIMER - Simplified */}
             {currentStatus !== 'DONE' && (
                 <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 flex items-center gap-4">
                     <div className="flex-shrink-0 w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center">
@@ -264,6 +343,7 @@ const MissionControl: React.FC<MissionControlProps> = ({ logs, targetCount, onAb
                     label="Submissions"
                     value={`${currentCount}/${targetCount}`}
                     sub="Successful Links"
+                    isAlert={true}
                 />
                 <StatCard
                     icon={<Zap className="text-amber-500" />}
@@ -324,24 +404,37 @@ const MissionControl: React.FC<MissionControlProps> = ({ logs, targetCount, onAb
             </div>
 
             <style>{`
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(245,158,11,0.3); }
+         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(245,158,11,0.3); }
+
+        @keyframes alert-blink {
+            0%, 100% { opacity: 1; filter: drop-shadow(0 0 10px rgba(16, 185, 129, 0.4)); transform: scale(1); }
+            50% { opacity: 0.8; filter: drop-shadow(0 0 20px rgba(16, 185, 129, 0.8)); transform: scale(1.02); }
+        }
+        .animate-alert-blink {
+            animation: alert-blink 1.5s infinite ease-in-out;
+        }
+
+        @keyframes count-pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+        }
+        .animate-count-pulse {
+            animation: count-pulse 0.5s ease-out;
+        }
       `}</style>
         </div>
     );
 };
 
-const StatCard = ({ icon, label, value, sub }: { icon: React.ReactNode, label: string, value: string, sub: string }) => (
-    <div className="glass-panel p-6 rounded-2xl border-white/5 hover:border-amber-500/30 transition-all duration-500 group">
+const StatCard = ({ icon, label, value, sub, isAlert }: { icon: React.ReactNode, label: string, value: string, sub: string, isAlert?: boolean }) => (
+    <div className={`glass-panel p-6 rounded-2xl border-white/5 hover:border-amber-500/30 transition-all duration-500 group ${isAlert ? 'border-emerald-500/20 bg-emerald-500/[0.02]' : ''}`}>
         <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 rounded-lg bg-white/5 group-hover:scale-110 transition-transform duration-500">
+            <div className={`p-2 rounded-lg bg-white/5 group-hover:scale-110 transition-transform duration-500 ${isAlert ? 'text-emerald-500' : ''}`}>
                 {icon}
             </div>
-            <span className="text-[10px] font-mono text-slate-500 uppercase tracking-widest font-bold">{label}</span>
+            <span className={`text-[10px] font-mono text-slate-500 uppercase tracking-widest font-bold ${isAlert ? 'text-emerald-500/80' : ''}`}>{label}</span>
         </div>
-        <div className="text-2xl font-bold text-white mb-1 tracking-tight">{value}</div>
+        <div className={`text-2xl font-bold text-white mb-1 tracking-tight ${isAlert ? 'animate-alert-blink text-emerald-400' : ''}`}>{value}</div>
         <div className="text-[10px] text-slate-600 font-medium uppercase tracking-wider">{sub}</div>
     </div>
 );

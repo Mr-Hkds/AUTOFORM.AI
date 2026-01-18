@@ -14,10 +14,22 @@ const GOOGLE_TYPE_MAP: Record<number, QuestionType> = {
   10: QuestionType.TIME,
 };
 
+const decodeHtmlEntities = (text: string): string => {
+  if (!text) return '';
+  return text
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, ' ');
+};
+
 const truncateTitle = (title: string, maxLength: number = 60): string => {
   if (!title) return 'Untitled Form';
-  if (title.length <= maxLength) return title;
-  return title.substring(0, maxLength) + '...';
+  const decoded = decodeHtmlEntities(title);
+  if (decoded.length <= maxLength) return decoded;
+  return decoded.substring(0, maxLength) + '...';
 };
 
 // Proxy Providers for CORS - Prioritize our own API
@@ -105,17 +117,36 @@ export const fetchAndParseForm = async (url: string): Promise<{ title: string; q
   }
 
   try {
+    // Extract fallback title from HTML
+    const metaTitleMatch = html.match(/<meta\s+property="og:title"\s+content="([^"]*)"/i) || html.match(/<meta\s+name="title"\s+content="([^"]*)"/i);
+    const titleTagMatch = html.match(/<title>(.*?)<\/title>/i);
+
+    let htmlTitle = metaTitleMatch ? metaTitleMatch[1] : (titleTagMatch ? titleTagMatch[1] : '');
+    htmlTitle = htmlTitle.replace(/ - Google Forms$/, ''); // Clean suffix
+
     const json = JSON.parse(match[1]);
-    return parseGoogleJson(json);
+    return parseGoogleJson(json, decodeHtmlEntities(htmlTitle));
   } catch (e) {
     console.error('[FormParser] JSON Error:', e);
     throw new Error('Failed to parse form data.');
   }
 };
 
-const parseGoogleJson = (data: any): { title: string; questions: FormQuestion[] } => {
-  const rawTitle = data[1][8] || 'Untitled Form';
-  const formTitle = truncateTitle(rawTitle);
+const parseGoogleJson = (data: any, fallbackTitle: string = ''): { title: string; questions: FormQuestion[] } => {
+  // Try multiple locations for the title
+  let rawTitle = data[1][8];
+
+  // If undefined or generic, try data[3] (verified alt location)
+  if (!rawTitle || rawTitle === 'Untitled Form') {
+    if (data[3] && typeof data[3] === 'string') rawTitle = data[3];
+  }
+
+  // If still untitled, use HTML fallback
+  if ((!rawTitle || rawTitle === 'Untitled Form') && fallbackTitle) {
+    rawTitle = fallbackTitle;
+  }
+
+  const formTitle = truncateTitle(rawTitle || 'Untitled Form');
   const rawQuestions = data[1][1];
 
   const questions: FormQuestion[] = [];
