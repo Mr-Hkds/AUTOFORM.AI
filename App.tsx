@@ -409,7 +409,7 @@ function App() {
 
       const rawForm = await fetchPromise;
       setProgress(45);
-      setAiProgress('Form loaded successfully ✓');
+      setAiProgress('Form loaded successfully');
 
       // 2. Analyze with smooth progress
       await new Promise(r => setTimeout(r, 600));
@@ -647,7 +647,7 @@ function App() {
       setAutomationLogs([...logs]);
     };
 
-    pushLog('🚀 SYSTEM ENGINE: Initializing Neural Bridge...', 'INIT');
+    pushLog('SYSTEM ENGINE: Initializing Neural Bridge...', 'INIT');
 
     try {
       // Setup payload generation logic
@@ -672,17 +672,17 @@ function App() {
         }
       });
 
-      pushLog(`🛰 Handshake verified. Establishing secure neural link...`);
+      pushLog(`Handshake verified. Establishing secure neural link...`);
       await new Promise(r => setTimeout(r, 2000)); // Immersion delay
 
       for (let i = 0; i < targetCount; i++) {
         // Check for Abort
         if ((window as any).__AF_STOP_SIGNAL) break;
 
-        pushLog(`🧠 Response #${i + 1}: Simulating human reasoning...`);
+        pushLog(`Response #${i + 1}: Simulating human reasoning...`);
         await new Promise(r => setTimeout(r, 1500 + Math.random() * 2000)); // Thinking delay
 
-        pushLog(`⚡ Response #${i + 1}: Generating optimized payload...`);
+        pushLog(`Response #${i + 1}: Generating optimized payload...`);
 
         // Generate values for this specific submission
         const submissionData: Record<string, string | string[]> = {};
@@ -722,7 +722,7 @@ function App() {
           if (value) submissionData[q.entryId] = value;
         });
 
-        pushLog(`📡 Response #${i + 1}: Relaying to secure endpoint...`);
+        pushLog(`Response #${i + 1}: Relaying to secure endpoint...`);
         await executeNativeSubmission(url, submissionData);
 
         successCount++;
@@ -731,7 +731,7 @@ function App() {
         // Every 15 submissions, add a "System Cooldown" to bypass IP-based rate limiting
         if (successCount % 15 === 0 && successCount < targetCount) {
           const cooldownSecs = 30 + Math.floor(Math.random() * 30);
-          pushLog(`🛡️ IP SAFETY: Automatic cooldown triggered. Waiting ${cooldownSecs}s to prevent blocking...`, 'COOLDOWN');
+          pushLog(`IP SAFETY: Automatic cooldown triggered. Waiting ${cooldownSecs}s to prevent blocking...`, 'COOLDOWN');
           await new Promise(r => setTimeout(r, cooldownSecs * 1000));
         } else {
           // Natural Human-scale Jitter/Delay
@@ -739,13 +739,13 @@ function App() {
           await new Promise(r => setTimeout(r, jitter));
         }
 
-        pushLog(`✅ Response #${i + 1}: Submission recorded.`, 'RUNNING', successCount);
+        pushLog(`Response #${i + 1}: Submission recorded.`, 'RUNNING', successCount);
       }
 
       if (!(window as any).__AF_STOP_SIGNAL) {
-        pushLog('🎊 SEQUENCER COMPLETE. All background jobs finished.', 'DONE', targetCount);
+        pushLog('SEQUENCER COMPLETE. All background jobs finished.', 'DONE', targetCount);
       } else {
-        pushLog('🛑 MISSION PARTIALLY COMPLETED. Intercepted by user.', 'ABORTED', successCount);
+        pushLog('MISSION PARTIALLY COMPLETED. Intercepted by user.', 'ABORTED', successCount);
       }
 
       // ACCURATE TOKEN DEDUCTION: Only deduct what was actually sent
@@ -758,7 +758,7 @@ function App() {
 
     } catch (err) {
       console.error(err);
-      pushLog('❌ ENGINE ERROR: Neural link severed.', 'ERROR');
+      pushLog('ENGINE ERROR: Neural link severed.', 'ERROR');
       setError("Auto-Run failed");
       return false;
     } finally {

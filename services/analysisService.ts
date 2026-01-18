@@ -89,7 +89,7 @@ export const analyzeForm = async (
   onProgress?: (message: string) => void
 ): Promise<FormAnalysis> => {
 
-  onProgress?.("📊 Applying Statistical Demographic Models...");
+  onProgress?.("Applying Statistical Demographic Models...");
 
   // Apply professional demographic distribution algorithms
   return applyStatisticalAnalysis(formTitle, questions);
