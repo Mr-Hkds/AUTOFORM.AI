@@ -97,6 +97,7 @@ export const subscribeToUserProfile = (uid: string, callback: (user: User | null
 };
 
 export const deductTokens = async (uid: string, amount: number): Promise<{ success: boolean; newTokens?: number }> => {
+    console.log(`[AuthService] Attempting to deduct ${amount} tokens for user ${uid}. Env: ${import.meta.env.DEV ? 'DEV' : 'PROD'}`);
     try {
         // DEV MODE: Direct Firestore Update (Efficiency & Local Persistence)
         // Now allowed by relaxed Firestore Rules (safe decrement only)
@@ -107,21 +108,25 @@ export const deductTokens = async (uid: string, amount: number): Promise<{ succe
 
             if (userSnap.exists()) {
                 const currentTokens = userSnap.data().tokens || 0;
+                console.log(`[AuthService] Current tokens: ${currentTokens}. Required: ${amount}`);
                 if (currentTokens >= amount) {
                     await updateDoc(userRef, {
                         tokens: increment(-amount)
                     });
+                    console.log(`[AuthService] ✅ Firestore update successful. New balance should be ${currentTokens - amount}`);
                     return { success: true, newTokens: currentTokens - amount };
                 } else {
                     console.error("[AuthService] Insufficient tokens");
                     return { success: false };
                 }
+            } else {
+                console.error("[AuthService] User document does not exist");
             }
             return { success: false };
         }
 
         // PROD MODE: Secure Server Call
-        // SECURITY: Call server-side endpoint to prevent client-side manipulation
+        console.log("[AuthService] Prod Mode: Calling secure API...");
         const response = await fetch('/api/deduct-tokens', {
             method: 'POST',
             headers: {
@@ -137,9 +142,10 @@ export const deductTokens = async (uid: string, amount: number): Promise<{ succe
             return { success: false };
         }
 
+        console.log("[AuthService] ✅ API deduction successful. New Tokens:", data.newTokens);
         return { success: true, newTokens: data.newTokens };
     } catch (e) {
-        console.error("Failed to deduct tokens (Network):", e);
+        console.error("Failed to deduct tokens (Network/Auth):", e);
         return { success: false };
     }
 };

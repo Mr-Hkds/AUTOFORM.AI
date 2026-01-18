@@ -75,7 +75,8 @@ export const LEGAL_CONTENT = {
             
             <div class="space-y-4 mt-6">
                 <div>
-                     <p class="text-sm">Product made by <span class="text-amber-500 font-bold">Mr. Harkamal</span></p>
+                     <p class="text-sm">DESIGNED AND DEVLOPED BY <span class="text-amber-500 font-bold">Mr. Harkamal</span></p>
+
                 </div>
                 
                 <div>

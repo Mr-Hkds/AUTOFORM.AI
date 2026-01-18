@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 
 // Log Version for Vercel Verification
-console.log('[SYSTEM] AutoForm AI v4.1.2 Loaded [Razorpay Fixes Included]');
+console.log('[SYSTEM] AutoForm AI v4.1.4 Loaded [Razorpay Fixes Included]');
 import { Bot, Copy, CheckCircle, AlertCircle, BarChart3, ArrowRight, ArrowLeft, RotateCcw, Sparkles, Code2, Terminal, Zap, Command, Activity, Cpu, Crown, LogOut, Settings, Lock, Laptop, Monitor, Target, ShieldCheck, ExternalLink } from 'lucide-react';
 import { fetchAndParseForm } from './services/formParser';
 import { analyzeForm as analyzeFormWithStatistics, generateResponseSuggestions } from './services/analysisService';
@@ -240,9 +240,9 @@ const Footer = ({ onLegalNav }: { onLegalNav: (type: 'privacy' | 'terms' | 'refu
 
 
             {/* Version System Tag */}
-            <div className="absolute bottom-2 right-4 opacity-30 hover:opacity-100 transition-opacity">
+            <div className="absolute bottom-2 right-4 opacity-80 hover:opacity-100 transition-opacity">
                 <span className="text-[9px] text-slate-500 font-mono tracking-[0.2em] uppercase">
-                    Build v4.1.2
+                    Build v4.1.4
                 </span>
             </div>
 
