@@ -13,8 +13,8 @@ const mapFirebaseUserToUser = (firebaseUser: any): User => ({
     photoURL: firebaseUser.photoURL || "",
     isPremium: false,
     responsesUsed: 0,
-    tokens: 15, // Default starting tokens
-    createdAt: new Date(), // These might be inaccurate for existing users without DB, but fine for fallback
+    tokens: 0, // Default to 0, let Firestore or ensured profile provide real count
+    createdAt: new Date(),
     lastLogin: new Date()
 });
 
@@ -96,7 +96,7 @@ export const subscribeToUserProfile = (uid: string, callback: (user: User | null
     });
 };
 
-export const deductTokens = async (uid: string, amount: number) => {
+export const deductTokens = async (uid: string, amount: number): Promise<{ success: boolean; newTokens?: number }> => {
     try {
         // SECURITY: Call server-side endpoint to prevent client-side manipulation
         const response = await fetch('/api/deduct-tokens', {
@@ -107,16 +107,17 @@ export const deductTokens = async (uid: string, amount: number) => {
             body: JSON.stringify({ uid, amount })
         });
 
+        const data = await response.json();
+
         if (!response.ok) {
-            const error = await response.json();
-            console.error("Server refused token deduction:", error);
-            return false;
+            console.error("Server refused token deduction:", data);
+            return { success: false };
         }
 
-        return true;
+        return { success: true, newTokens: data.newTokens };
     } catch (e) {
         console.error("Failed to deduct tokens (Network):", e);
-        return false;
+        return { success: false };
     }
 };
 
@@ -136,7 +137,7 @@ export const addTokens = async (uid: string, amount: number) => {
 // Legacy support: Increment usage count (now just a wrapper or deprecated)
 export const incrementUsageCount = async (uid: string, count: number) => {
     // Replaced by deductTokens in new flow, keeping for backward compat if needed
-    await deductTokens(uid, count);
+    return await deductTokens(uid, count);
 };
 
 export const upgradeUserToPremium = async (uid: string) => {

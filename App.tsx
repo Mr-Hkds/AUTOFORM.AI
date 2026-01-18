@@ -750,7 +750,11 @@ function App() {
 
       // ACCURATE TOKEN DEDUCTION: Only deduct what was actually sent
       if (successCount > 0) {
-        await incrementUsageCount(user.uid, successCount);
+        const result = await incrementUsageCount(user.uid, successCount);
+        if (result.success && typeof result.newTokens === 'number') {
+          // Optimistic state update for Header
+          setUser(prev => prev ? { ...prev, tokens: result.newTokens as number } : null);
+        }
       }
 
       (window as any).__AF_STOP_SIGNAL = false;

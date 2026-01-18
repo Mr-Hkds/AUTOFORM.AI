@@ -16,6 +16,29 @@ export default defineConfig(({ mode }) => {
         name: 'configure-response-headers',
         configureServer: (server) => {
           server.middlewares.use(async (req, res, next) => {
+            // Handle /api/deduct-tokens (SIMULATION for Local Dev)
+            if (req.url?.startsWith('/api/deduct-tokens') && req.method === 'POST') {
+              console.log('[Vite Proxy] Handling Token Deduction Locally...');
+
+              let body = '';
+              req.on('data', chunk => body += chunk.toString());
+              req.on('end', async () => {
+                try {
+                  const { uid, amount } = JSON.parse(body);
+                  // In local simulation, we just return success but don't actually modify Firestore 
+                  // (App.tsx will handle optimistic update if we return success)
+                  // Or better: We can't easily use Admin SDK here, so we tell the client it was okay.
+                  res.setHeader('Content-Type', 'application/json');
+                  res.statusCode = 200;
+                  res.end(JSON.stringify({ success: true, newTokens: 'SIMULATED' }));
+                } catch (error) {
+                  res.statusCode = 500;
+                  res.end(JSON.stringify({ error: error.message }));
+                }
+              });
+              return;
+            }
+
             // Handle /api/verify-payment (SIMULATION for Local Dev)
             if (req.url?.startsWith('/api/verify-payment') && req.method === 'POST') {
               console.log('[Vite Proxy] Handling Payment Verification Locally...');
