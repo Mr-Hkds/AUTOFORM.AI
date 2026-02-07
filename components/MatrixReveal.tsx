@@ -75,7 +75,7 @@ const MatrixReveal: React.FC<MatrixRevealProps> = ({
     return (
         <span
             ref={elementRef}
-            className={`inline-flex whitespace-pre cursor-default select-none ${className}`}
+            className={`cursor-default select-none ${className}`}
             onMouseEnter={handleInteraction}
             onClick={handleInteraction}
         >
@@ -87,18 +87,15 @@ const MatrixReveal: React.FC<MatrixRevealProps> = ({
                 return (
                     <span
                         key={i}
-                        className="inline-block transition-colors duration-75 will-change-transform"
+                        className="transition-colors duration-75"
                         style={{
-                            // Normal: Inherit (Gold Gradient), Serif, No Shadow
-                            // Glitch: Matrix Green, Mono, Glow, Scale
-                            color: isGlitching ? '#10b981' : 'transparent', // Gold needs transparent text for bg-clip
-                            backgroundImage: isGlitching ? 'none' : 'inherit', // Keep gradient flow for gold
+                            // Normal: Uses parent's liquid-gold-text (transparent color, background-clip)
+                            // Glitch: Matrix Green, Mono, Glow
+                            // NOTE: We avoid inline-block/transform here to preserve the parent's background-clip: text continuity
+                            color: isGlitching ? '#10b981' : undefined,
                             fontFamily: isGlitching ? '"JetBrains Mono", monospace' : 'inherit',
                             textShadow: isGlitching ? '0 0 10px rgba(16,185,129,0.9)' : 'none',
-                            transform: isGlitching ? 'scale(1.1) translateY(-1px)' : 'scale(1)',
-                            opacity: isGlitching ? 1 : 1, // Always visible
-                            WebkitBackgroundClip: isGlitching ? 'border-box' : 'text', // Disable clip for green char
-                            backgroundClip: isGlitching ? 'border-box' : 'text'
+                            opacity: 1
                         }}
                     >
                         {isGlitching ? glitchChar : char}

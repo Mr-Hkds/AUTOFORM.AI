@@ -22,6 +22,7 @@ import MissionControl from './components/MissionControl';
 import Header from './components/Header';
 import PremiumBackground from './components/PremiumBackground';
 import LegalPage from './components/LegalPage';
+import MatrixReveal from './components/MatrixReveal';
 
 // --- VISUAL COMPONENTS ---
 
@@ -308,9 +309,10 @@ const Footer = ({ onLegalNav }: { onLegalNav: (type: 'privacy' | 'terms' | 'refu
                     <div className="absolute -inset-8 bg-gradient-to-r from-amber-500/0 via-amber-500/10 to-amber-500/0 blur-2xl opacity-0 group-hover:opacity-100" />
 
                     {/* Signature Text */}
-                    <span className="relative z-10 text-lg md:text-xl font-bold liquid-gold-text drop-shadow-[0_2px_10px_rgba(0,0,0,0.5)]">
-                        MR. HARKAMAL
-                    </span>
+                    <MatrixReveal
+                        text="MR. HARKAMAL"
+                        className="relative z-10 text-lg md:text-xl font-bold liquid-gold-text drop-shadow-[0_2px_10px_rgba(0,0,0,0.5)]"
+                    />
                 </div>
             </div>
 
