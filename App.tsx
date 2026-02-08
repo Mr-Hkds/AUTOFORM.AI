@@ -284,6 +284,7 @@ function App() {
     const [customNamesRaw, setCustomNamesRaw] = useState('');
     const [speedMode, setSpeedMode] = useState<'auto' | 'manual'>('auto');
     const [isLaunching, setIsLaunching] = useState(false);
+    const [launchProgress, setLaunchProgress] = useState(0);
 
     // NEW: AI Data Context State
     const [aiPromptData, setAiPromptData] = useState('');
@@ -345,7 +346,51 @@ function App() {
         return () => window.removeEventListener('popstate', handlePopState);
     }, []);
 
+
+    useEffect(() => {
+        if (!isLaunching) {
+            setLaunchProgress(0);
+            return;
+        }
+
+        const start = performance.now();
+        const duration = 4000;
+        let frameId = 0;
+
+        const tick = (now: number) => {
+            const raw = Math.min((now - start) / duration, 1);
+            // Ease-out with slight jitter so the launch sequence feels alive.
+            const eased = 1 - Math.pow(1 - raw, 2.2);
+            const jitter = raw < 0.95 ? (Math.sin(now / 120) + 1) * 0.35 : 0;
+            const percent = Math.min(100, Math.max(0, Math.round(eased * 100 + jitter)));
+            setLaunchProgress(percent);
+
+            if (raw < 1) {
+                frameId = requestAnimationFrame(tick);
+            }
+        };
+
+        frameId = requestAnimationFrame(tick);
+        return () => cancelAnimationFrame(frameId);
+    }, [isLaunching]);
+
     const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+
+
+    const launchStages = ['Integrity Check', 'Handshake', 'Pipeline Sync', 'Mission Boot'];
+    const activeLaunchStageIndex = Math.min(
+        launchStages.length - 1,
+        Math.floor((launchProgress / 100) * launchStages.length)
+    );
+    const currentLaunchStage = launchStages[activeLaunchStageIndex];
+    const launchEta = Math.max(0, ((100 - launchProgress) * 0.04)).toFixed(1);
+    const launchStatusLabel = launchProgress >= 96 ? 'System: Armed' : `System: ${currentLaunchStage}`;
+    const launchActivities = [
+        'auth token sealed',
+        'response payload indexed',
+        'runner context primed',
+        'handoff to mission control'
+    ];
 
     const handleLegalNav = (type: 'privacy' | 'terms' | 'refund' | 'contact' | null) => {
         setLegalType(type);
@@ -1263,7 +1308,7 @@ function App() {
                                 <div className="space-y-4 w-full">
                                     <div className="flex items-center justify-between">
                                         <span className="text-[10px] font-mono text-slate-500 uppercase tracking-widest">Operation: Synchronize</span>
-                                        <span className="text-[10px] font-mono text-emerald-500 font-bold uppercase">System: Stable</span>
+                                        <span className="text-[10px] font-mono text-emerald-500 font-bold uppercase">{launchStatusLabel}</span>
                                     </div>
 
                                     <div className="h-14 border border-white/5 bg-black/40 rounded-xl flex items-center justify-center relative overflow-hidden group">
@@ -1272,10 +1317,7 @@ function App() {
                                         <div className="absolute right-2 bottom-2 text-[6px] font-mono text-slate-700 uppercase tracking-tighter">Latency: 0.1ms</div>
 
                                         <span className="text-sm font-mono text-white tracking-[0.3em] font-bold uppercase">
-                                            {progress < 25 ? "Verifying Access" :
-                                                progress < 50 ? "Neural Handshake" :
-                                                    progress < 75 ? "Syncing Logic" :
-                                                        "Engaging Drive"}
+                                            {currentLaunchStage}
                                         </span>
                                     </div>
                                 </div>
@@ -1286,13 +1328,68 @@ function App() {
                                         {[...Array(20)].map((_, i) => (
                                             <div
                                                 key={i}
-                                                className={`flex-1 h-full rounded-sm transition-all duration-500 ${Math.floor((progress / 100) * 20) > i ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]' : 'bg-white/10'}`}
+                                                className={`flex-1 h-full rounded-sm transition-all duration-500 ${Math.floor((launchProgress / 100) * 20) > i ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]' : 'bg-white/10'}`}
                                             />
                                         ))}
                                     </div>
+                                    <div className="h-2 w-full bg-black/50 border border-white/10 rounded-full overflow-hidden">
+                                        <div
+                                            className="h-full bg-gradient-to-r from-emerald-500/70 via-emerald-400 to-emerald-500 shadow-[0_0_14px_rgba(16,185,129,0.7)] transition-[width] duration-100"
+                                            style={{ width: `${launchProgress}%` }}
+                                        />
+                                    </div>
                                     <div className="flex justify-between text-[8px] font-mono text-slate-600 uppercase tracking-widest">
                                         <span>Sub-Routine Init</span>
-                                        <span>Target: Mission_Ctrl</span>
+                                        <span>{launchProgress}% · ETA {launchEta}s</span>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-2 pt-2">
+                                        {launchStages.map((stage, idx) => {
+                                            const state = idx < activeLaunchStageIndex
+                                                ? 'done'
+                                                : idx === activeLaunchStageIndex
+                                                    ? 'active'
+                                                    : 'pending';
+
+                                            return (
+                                                <div
+                                                    key={stage}
+                                                    className={`rounded-lg border px-2 py-1.5 text-left transition-all duration-300 ${state === 'done'
+                                                        ? 'border-emerald-500/30 bg-emerald-500/10'
+                                                        : state === 'active'
+                                                            ? 'border-emerald-400/50 bg-emerald-500/15 shadow-[0_0_20px_rgba(16,185,129,0.15)]'
+                                                            : 'border-white/10 bg-black/30'
+                                                        }`}
+                                                >
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span className={`h-1.5 w-1.5 rounded-full ${state === 'done'
+                                                            ? 'bg-emerald-500'
+                                                            : state === 'active'
+                                                                ? 'bg-emerald-400 animate-pulse'
+                                                                : 'bg-slate-600'
+                                                            }`} />
+                                                        <span className={`text-[8px] font-mono uppercase tracking-wider ${state === 'pending' ? 'text-slate-600' : 'text-emerald-200'}`}>
+                                                            {stage}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+
+                                    <div className="w-full rounded-lg border border-emerald-500/15 bg-black/35 p-2.5 space-y-1.5">
+                                        {launchActivities.map((activity, idx) => {
+                                            const done = idx < activeLaunchStageIndex;
+                                            const active = idx === activeLaunchStageIndex;
+                                            return (
+                                                <div key={activity} className="flex items-center justify-between text-[8px] font-mono uppercase tracking-widest">
+                                                    <span className={done || active ? 'text-emerald-200' : 'text-slate-600'}>{activity}</span>
+                                                    <span className={done ? 'text-emerald-400' : active ? 'text-amber-400 animate-pulse' : 'text-slate-600'}>
+                                                        {done ? 'ok' : active ? 'running' : 'queued'}
+                                                    </span>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             </div>
