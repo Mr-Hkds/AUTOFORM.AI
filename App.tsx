@@ -245,7 +245,7 @@ const Footer = React.memo(({ onLegalNav }: { onLegalNav: (type: 'privacy' | 'ter
             {/* Version System Tag */}
             <div className="absolute bottom-2 right-4 opacity-80 hover:opacity-100 transition-opacity">
                 <span className="text-[9px] text-slate-500 font-mono tracking-[0.2em] uppercase">
-                    Build {VERSION} STABLE
+                    
                 </span>
             </div>
         </div>
