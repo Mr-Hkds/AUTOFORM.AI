@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 const VERSION = "4.0.5";
 
@@ -255,6 +255,16 @@ const Footer = React.memo(({ onLegalNav }: { onLegalNav: (type: 'privacy' | 'ter
 // DELETED: LoadingState replaced by LoadingScreen component
 
 function App() {
+    const LAUNCH_HANDOFF_MS = 4000;
+    const LAUNCH_OVERLAY_MS = 4500;
+    const LAUNCH_STAGES = ['Integrity Check', 'Handshake', 'Pipeline Sync', 'Mission Boot'];
+    const LAUNCH_ACTIVITIES = [
+        'auth token sealed',
+        'response payload indexed',
+        'runner context primed',
+        'handoff to mission control'
+    ];
+
     // User State
     const [user, setUser] = useState<User | null>(null);
     const [authLoading, setAuthLoading] = useState(true);
@@ -284,6 +294,11 @@ function App() {
     const [customNamesRaw, setCustomNamesRaw] = useState('');
     const [speedMode, setSpeedMode] = useState<'auto' | 'manual'>('auto');
     const [isLaunching, setIsLaunching] = useState(false);
+    const [launchProgress, setLaunchProgress] = useState(0);
+    const launchFrameRef = useRef<number | null>(null);
+    const launchStepTimerRef = useRef<number | null>(null);
+    const launchRunTimerRef = useRef<number | null>(null);
+    const launchPayloadRef = useRef<Record<string, string> | null>(null);
 
     // NEW: AI Data Context State
     const [aiPromptData, setAiPromptData] = useState('');
@@ -346,6 +361,110 @@ function App() {
     }, []);
 
     const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    useEffect(() => {
+        if (!isLaunching) {
+            setLaunchProgress(0);
+            if (launchFrameRef.current !== null) {
+                cancelAnimationFrame(launchFrameRef.current);
+                launchFrameRef.current = null;
+            }
+            return;
+        }
+
+        const start = performance.now();
+        const tick = (now: number) => {
+            const raw = Math.min((now - start) / LAUNCH_HANDOFF_MS, 1);
+            const eased = 1 - Math.pow(1 - raw, 2.2);
+            const stageBoost = raw < 0.9 ? (Math.sin(now / 180) + 1) * 0.15 : 0;
+            const targetPercent = Math.min(100, Math.round(eased * 100 + stageBoost));
+
+            setLaunchProgress(prev => (targetPercent > prev ? targetPercent : prev));
+
+            if (raw < 1) {
+                launchFrameRef.current = requestAnimationFrame(tick);
+            } else {
+                launchFrameRef.current = null;
+            }
+        };
+
+        launchFrameRef.current = requestAnimationFrame(tick);
+
+        return () => {
+            if (launchFrameRef.current !== null) {
+                cancelAnimationFrame(launchFrameRef.current);
+                launchFrameRef.current = null;
+            }
+        };
+    }, [isLaunching]);
+
+    useEffect(() => {
+        return () => {
+            if (launchStepTimerRef.current !== null) {
+                window.clearTimeout(launchStepTimerRef.current);
+            }
+            if (launchRunTimerRef.current !== null) {
+                window.clearTimeout(launchRunTimerRef.current);
+            }
+            if (launchFrameRef.current !== null) {
+                cancelAnimationFrame(launchFrameRef.current);
+            }
+        };
+    }, []);
+
+    useEffect(() => {
+        if (!isLaunching) return;
+
+        const handleLaunchKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                void continueLaunchNow();
+            }
+        };
+
+        window.addEventListener('keydown', handleLaunchKeyDown);
+        return () => window.removeEventListener('keydown', handleLaunchKeyDown);
+    }, [isLaunching]);
+
+    const activeLaunchStageIndex = Math.min(
+        LAUNCH_STAGES.length - 1,
+        Math.floor((launchProgress / 100) * LAUNCH_STAGES.length)
+    );
+    const currentLaunchStage = LAUNCH_STAGES[activeLaunchStageIndex];
+    const launchEta = Math.max(0, (((100 - launchProgress) / 100) * (LAUNCH_HANDOFF_MS / 1000))).toFixed(1);
+    const launchStatusLabel = launchProgress >= 96 ? 'System: Armed' : `System: ${currentLaunchStage}`;
+
+    const clearLaunchSequence = () => {
+        if (launchStepTimerRef.current !== null) {
+            window.clearTimeout(launchStepTimerRef.current);
+            launchStepTimerRef.current = null;
+        }
+        if (launchRunTimerRef.current !== null) {
+            window.clearTimeout(launchRunTimerRef.current);
+            launchRunTimerRef.current = null;
+        }
+        if (launchFrameRef.current !== null) {
+            cancelAnimationFrame(launchFrameRef.current);
+            launchFrameRef.current = null;
+        }
+    };
+
+    const continueLaunchNow = async () => {
+        if (!launchPayloadRef.current) return;
+
+        clearLaunchSequence();
+        setLaunchProgress(100);
+        setStep(3);
+        setIsLaunching(false);
+
+        try {
+            await handleAutoRun(launchPayloadRef.current);
+        } catch (err) {
+            console.error('Auto-Run failed', err);
+        } finally {
+            launchPayloadRef.current = null;
+        }
+    };
 
     const handleLegalNav = (type: 'privacy' | 'terms' | 'refund' | 'contact' | null) => {
         setLegalType(type);
@@ -1071,26 +1190,23 @@ function App() {
         setAutomationLogs([]);
 
         // --- ATMOSPHERIC VERIFICATION SEQUENCE (4500ms) ---
+        launchPayloadRef.current = mergedResponses;
+        clearLaunchSequence();
+        setLaunchProgress(0);
         setIsLaunching(true);
 
         // Sequence: 
-        // 0-3500ms: Neural Handshake & Calibration
-        // 3500ms: Glow Blade Swipe / Engagement Flash Starts
-        // 4000ms: Page Swap (Behind the flash)
-        // 4500ms: Transition End
+        // 0-4000ms: Progress Animation
+        // 4000ms: Page Swap
+        // 4500ms: Transition End / Start Run
 
-        setTimeout(() => {
+        launchStepTimerRef.current = window.setTimeout(() => {
             setStep(3);
-        }, 4000);
+        }, LAUNCH_HANDOFF_MS);
 
-        setTimeout(async () => {
-            setIsLaunching(false);
-            try {
-                await handleAutoRun(mergedResponses);
-            } catch (err) {
-                console.error("Auto-Run failed", err);
-            }
-        }, 4500);
+        launchRunTimerRef.current = window.setTimeout(() => {
+            void continueLaunchNow();
+        }, LAUNCH_OVERLAY_MS);
     };
 
     const handleAIInject = () => {
@@ -1175,7 +1291,7 @@ function App() {
                         }
                         @keyframes cinematic-bar-in {
                             0% { height: 0; }
-                            100% { height: 12vh; }
+                            100% { height: 10vh; }
                         }
                         @keyframes data-flow {
                             0% { transform: translateY(0); }
@@ -1190,12 +1306,6 @@ function App() {
                             0% { top: 0%; opacity: 0; }
                             50% { opacity: 0.5; }
                             100% { top: 100%; opacity: 0; }
-                        }
-                        @keyframes packet-run-h {
-                            0% { left: -10%; opacity: 0; }
-                            10% { opacity: 1; }
-                            90% { opacity: 1; }
-                            100% { left: 110%; opacity: 0; }
                         }
                         @keyframes telemetry-roll {
                             0% { opacity: 0.5; }
@@ -1216,7 +1326,7 @@ function App() {
                             font-family: 'JetBrains Mono', monospace;
                             font-size: 10px;
                             color: #10b981;
-                            opacity: 0.05;
+                            opacity: 0.12;
                             line-height: 1.2;
                             user-select: none;
                             pointer-events: none;
@@ -1230,14 +1340,6 @@ function App() {
                             height: 20px;
                             border-color: rgba(16, 185, 129, 0.4);
                         }
-                        .data-packet {
-                            position: absolute;
-                            width: 15px;
-                            height: 1px;
-                            background: linear-gradient(90deg, transparent, #10b981, transparent);
-                            filter: drop-shadow(0 0 5px #10b981);
-                            animation: packet-run-h 2s linear infinite;
-                        }
                     `}</style>
 
                     {/* Cinematic Bars */}
@@ -1245,122 +1347,157 @@ function App() {
                     <div className="letterbox-bar bottom-0 border-t border-white/5" />
 
                     {/* Engagement Flash Overlay */}
-                    <div className="fixed inset-0 z-[110] pointer-events-none mix-blend-screen opacity-0 animate-[engagement-flash_1.2s_3.8s_ease-out_forwards]" />
+                    <div className="fixed inset-0 z-[110] pointer-events-none mix-blend-screen opacity-0 animate-[engagement-flash_1.2s_ease-out_3.8s_forwards]" />
 
                     {/* Background Content */}
                     <div className="absolute inset-0 bg-black z-0" />
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_20%,rgba(16,185,129,0.16),transparent_48%)] z-[1]" />
+                    <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(2,6,23,0.2)_0%,rgba(2,6,23,0.85)_100%)] z-[1]" />
                     <div className="neural-stream">
                         {Array(50).fill('01011010 SYNC_CORE_LOAD AUTH_HANDSHAKE_PROCEED\n0x7F2A9B ENGINE_READY NEURAL_LINK_ESTABLISHED\nSYSTEM_INTEGRITY_CHECK_PASS MISSION_VECTOR_LOCKED\n').join('')}
                     </div>
 
-                    {/* TACTICAL COMMAND HUD */}
-                    <div className="relative z-10 w-[90%] max-w-lg animate-[core-inhale_0.6s_ease-out_forwards]">
+                    {/* TACTICAL COMMAND HUD WRAPPER */}
+                    <div className="relative z-10 w-full flex items-center justify-center p-4 md:p-8 animate-[core-inhale_0.6s_ease-out_forwards]">
 
-                        {/* HUD Corners */}
-                        <div className="tactical-border top-0 left-0 border-t-2 border-l-2" />
-                        <div className="tactical-border top-0 right-0 border-t-2 border-r-2" />
-                        <div className="tactical-border bottom-0 left-0 border-b-2 border-l-2" />
-                        <div className="tactical-border bottom-0 right-0 border-b-2 border-r-2" />
+                        <div className="relative w-full max-w-lg">
+                            {/* HUD Corners */}
+                            <div className="tactical-border top-0 left-0 border-t-2 border-l-2" />
+                            <div className="tactical-border top-0 right-0 border-t-2 border-r-2" />
+                            <div className="tactical-border bottom-0 left-0 border-b-2 border-l-2" />
+                            <div className="tactical-border bottom-0 right-0 border-b-2 border-r-2" />
 
-                        {/* Animated Border Packets */}
-                        <div className="data-packet top-0 left-0" style={{ animationDelay: '0s' }} />
-                        <div className="data-packet bottom-0 left-0" style={{ animationDelay: '1s' }} />
+                            <div className="glass-panel-premium border border-emerald-400/20 shadow-[0_20px_80px_rgba(16,185,129,0.12)] overflow-hidden relative rounded-2xl max-h-[78vh] overflow-y-auto custom-scrollbar">
+                                <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(135deg,rgba(16,185,129,0.08),transparent_45%,rgba(16,185,129,0.06))]" />
+                                {/* HUD Scan Line */}
+                                <div className="absolute left-0 right-0 h-1 bg-gradient-to-r from-transparent via-emerald-500/30 to-transparent shadow-[0_0_15px_rgba(16,185,129,0.5)] animate-[hud-scan_2s_linear_infinite]" />
 
-                        <div className="glass-panel-premium border border-white/10 overflow-hidden relative">
-                            {/* HUD Scan Line */}
-                            <div className="absolute left-0 right-0 h-1 bg-gradient-to-r from-transparent via-emerald-500/30 to-transparent shadow-[0_0_15px_rgba(16,185,129,0.5)] animate-[hud-scan_3s_linear_infinite]" />
-
-                            <div className="p-8 flex flex-col items-center text-center">
-                                {/* Core Visual */}
-                                <div className="relative mb-10">
-                                    <div className="absolute inset-0 bg-emerald-500/10 blur-3xl scale-150 animate-pulse" />
-                                    <div className="w-20 h-20 rounded-2xl border border-emerald-500/40 bg-black/40 flex items-center justify-center relative backdrop-blur-3xl overflow-hidden group">
-                                        <div className="absolute inset-0 bg-gradient-to-tr from-emerald-500/10 via-transparent to-transparent group-hover:animate-shimmer-flow" />
-                                        <Cpu className="w-10 h-10 text-emerald-400 group-hover:scale-110 transition-transform duration-500" />
-
-                                        {/* Activity Spinners */}
-                                        <div className="absolute inset-1 border border-emerald-500/10 rounded-xl animate-spin [animation-duration:4s]" />
-                                        <div className="absolute inset-2 border border-emerald-500/5 rounded-lg animate-reverse-spin [animation-duration:6s]" />
-                                    </div>
-                                    <div className="absolute -top-2 -right-2 px-1.5 py-0.5 bg-emerald-500 text-black text-[8px] font-bold uppercase rounded animate-pulse">Live</div>
-                                </div>
-
-                                {/* Mission Status */}
-                                <div className="space-y-4 w-full">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-                                            <span className="text-[10px] font-mono text-slate-500 uppercase tracking-widest">Op: Sync_Neural</span>
+                                <div className="p-5 md:p-8 flex flex-col items-center text-center">
+                                    {/* Core Visual */}
+                                    <div className="relative mb-6 md:mb-10">
+                                        <div className="absolute inset-0 bg-emerald-500/10 blur-3xl scale-150 animate-pulse" />
+                                        <div className="w-14 h-14 md:w-20 md:h-20 rounded-xl md:rounded-2xl border border-emerald-500/40 bg-black/40 flex items-center justify-center relative backdrop-blur-3xl overflow-hidden group">
+                                            <div className="absolute inset-0 bg-gradient-to-tr from-emerald-500/10 via-transparent to-transparent group-hover:animate-shimmer-flow" />
+                                            <Cpu className="w-7 h-7 md:w-10 md:h-10 text-emerald-400 group-hover:scale-110 transition-transform duration-500" />
                                         </div>
-                                        <span className="text-[10px] font-mono text-emerald-500/50 font-bold uppercase animate-[telemetry-roll_0.5s_infinite]">
-                                            0x{Math.floor(Math.random() * 65535).toString(16).toUpperCase().padStart(4, '0')}
-                                        </span>
+                                        <div className="absolute -top-2 -right-2 px-1.5 py-0.5 bg-emerald-500 text-black text-[8px] font-bold uppercase rounded">Live</div>
                                     </div>
 
-                                    <div className="h-16 border border-white/5 bg-black/40 rounded-xl flex flex-col items-center justify-center relative overflow-hidden group p-2">
-                                        {/* Decorative Technical Text */}
-                                        <div className="absolute left-2 top-2 text-[6px] font-mono text-slate-700 uppercase tracking-tighter">Alloc: {512 + Math.floor(Math.random() * 256)}mb</div>
-                                        <div className="absolute right-2 bottom-2 text-[6px] font-mono text-slate-700 uppercase tracking-tighter">Latency: {(0.1 + Math.random() * 0.2).toFixed(2)}ms</div>
+                                    {/* Mission Status */}
+                                    <div className="space-y-3 md:space-y-4 w-full">
+                                        <div className="flex items-center justify-between rounded-lg border border-white/10 bg-black/30 px-3 py-2">
+                                            <span className="text-[8px] md:text-[10px] font-mono text-slate-500 uppercase tracking-widest">Operation: Synchronize</span>
+                                            <span className="text-[8px] md:text-[10px] font-mono text-emerald-500 font-bold uppercase">{launchStatusLabel}</span>
+                                        </div>
 
-                                        <span className="text-sm font-mono text-white tracking-[0.3em] font-bold uppercase transition-all duration-300">
-                                            {progress < 15 ? "AUTH_HANDSHAKE" :
-                                                progress < 30 ? "VEC_MAPPING" :
-                                                    progress < 45 ? "NEURAL_OVERRIDE" :
-                                                        progress < 60 ? "BIT_SYNCHRONIZE" :
-                                                            progress < 75 ? "BEYOND_GATEWAY" :
-                                                                progress < 90 ? "INIT_DRIVE" :
-                                                                    "LAUNCH_COMPLETE"}
-                                        </span>
-                                        <div className="text-[8px] font-mono text-emerald-500/40 mt-1 animate-pulse">
-                                            {progress < 25 ? "[CALIBRATING_OPTICS]" :
-                                                progress < 50 ? "[MOUNTING_FS_REMOTE]" :
-                                                    progress < 75 ? "[BYPASS_SSL_LAYER]" :
-                                                        "[MISSION_VECTOR_READY]"}
+                                        <div className="h-12 md:h-14 border border-emerald-500/20 bg-black/45 rounded-xl flex items-center justify-center relative overflow-hidden group shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+                                            {/* Decorative Technical Text */}
+                                            <div className="absolute left-2 top-2 text-[6px] font-mono text-slate-700 uppercase tracking-tighter">Memory_Alloc: 512mb</div>
+                                            <div className="absolute right-2 bottom-2 text-[6px] font-mono text-slate-700 uppercase tracking-tighter">Latency: 0.1ms</div>
+
+                                            <span className="text-xs md:text-sm font-mono text-white tracking-[0.2em] md:tracking-[0.3em] font-bold uppercase">
+                                                {currentLaunchStage}
+                                            </span>
                                         </div>
                                     </div>
-                                </div>
 
-                                {/* Multi-Stage Progress */}
-                                <div className="mt-8 w-full space-y-2">
-                                    <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden flex gap-1 p-[1px] relative">
-                                        {/* Charge Spark Effect */}
-                                        <div
-                                            className="absolute top-0 bottom-0 w-8 bg-gradient-to-r from-transparent via-white/40 to-transparent blur-sm pointer-events-none transition-all duration-300"
-                                            style={{ left: `${progress}%`, opacity: progress > 0 && progress < 100 ? 1 : 0 }}
-                                        />
-
-                                        {[...Array(24)].map((_, i) => (
+                                    {/* Multi-Stage Progress */}
+                                    <div className="mt-8 w-full space-y-2">
+                                        <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden flex gap-1 p-[1px]">
+                                            {[...Array(20)].map((_, i) => (
+                                                <div
+                                                    key={i}
+                                                    className={`flex-1 h-full rounded-sm transition-all duration-500 ${Math.floor((launchProgress / 100) * 20) > i ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]' : 'bg-white/10'}`}
+                                                />
+                                            ))}
+                                        </div>
+                                        <div className="h-2.5 w-full bg-black/60 border border-emerald-500/15 rounded-full overflow-hidden">
                                             <div
-                                                key={i}
-                                                className={`flex-1 h-full rounded-sm transition-all duration-500 ${Math.floor((progress / 100) * 24) > i ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]' : 'bg-white/10'}`}
+                                                className="h-full bg-gradient-to-r from-emerald-500/70 via-emerald-400 to-emerald-500 shadow-[0_0_14px_rgba(16,185,129,0.7)] transition-[width] duration-100"
+                                                style={{ width: `${launchProgress}%` }}
                                             />
-                                        ))}
-                                    </div>
-                                    <div className="flex justify-between text-[8px] font-mono text-slate-600 uppercase tracking-widest px-1">
-                                        <span>Sub-Routine Init</span>
-                                        <span className="text-emerald-500/60 font-bold tabular-nums">{progress}%</span>
+                                        </div>
+                                        <div className="flex justify-between text-[8px] font-mono text-slate-600 uppercase tracking-widest">
+                                            <span>Sub-Routine Init</span>
+                                            <span>{launchProgress}% · ETA {launchEta}s</span>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-2 pt-2">
+                                            {LAUNCH_STAGES.map((stage, idx) => {
+                                                const state = idx < activeLaunchStageIndex
+                                                    ? 'done'
+                                                    : idx === activeLaunchStageIndex
+                                                        ? 'active'
+                                                        : 'pending';
+
+                                                return (
+                                                    <div
+                                                        key={stage}
+                                                        className={`rounded-lg border px-2 py-1.5 text-left transition-all duration-300 ${state === 'done'
+                                                            ? 'border-emerald-500/30 bg-emerald-500/10'
+                                                            : state === 'active'
+                                                                ? 'border-emerald-400/50 bg-emerald-500/15 shadow-[0_0_20px_rgba(16,185,129,0.15)]'
+                                                                : 'border-white/10 bg-black/30'
+                                                            }`}
+                                                    >
+                                                        <div className="flex items-center gap-1.5">
+                                                            <span className={`h-1.5 w-1.5 rounded-full ${state === 'done'
+                                                                ? 'bg-emerald-500'
+                                                                : state === 'active'
+                                                                    ? 'bg-emerald-400 animate-pulse'
+                                                                    : 'bg-slate-600'
+                                                                }`} />
+                                                            <span className={`text-[8px] font-mono uppercase tracking-wider ${state === 'pending' ? 'text-slate-600' : 'text-emerald-200'}`}>
+                                                                {stage}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+
+                                        <div className="w-full rounded-lg border border-emerald-500/15 bg-black/35 p-2.5 space-y-1.5">
+                                            {LAUNCH_ACTIVITIES.map((activity, idx) => {
+                                                const done = idx < activeLaunchStageIndex;
+                                                const active = idx === activeLaunchStageIndex;
+                                                return (
+                                                    <div key={activity} className="flex items-center justify-between text-[8px] font-mono uppercase tracking-widest">
+                                                        <span className={done || active ? 'text-emerald-200' : 'text-slate-600'}>{activity}</span>
+                                                        <span className={done ? 'text-emerald-400' : active ? 'text-amber-400 animate-pulse' : 'text-slate-600'}>
+                                                            {done ? 'ok' : active ? 'running' : 'queued'}
+                                                        </span>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+
+                                        <button
+                                            onClick={() => void continueLaunchNow()}
+                                            className="mt-3 w-full rounded-lg border border-emerald-300/40 bg-gradient-to-r from-emerald-500/20 to-emerald-400/10 px-3 py-2 text-[10px] font-mono uppercase tracking-[0.18em] text-emerald-100 hover:from-emerald-500/30 hover:to-emerald-400/20 transition shadow-[0_0_18px_rgba(16,185,129,0.18)]"
+                                        >
+                                            Continue Now • Enter
+                                        </button>
+                                        <p className="mt-1 text-[8px] font-mono uppercase tracking-wider text-slate-400">Need speed? Skip cinematic and jump straight to mission control</p>
                                     </div>
                                 </div>
                             </div>
-                        </div>
 
-                        {/* Side HUD Telemetry */}
-                        <div className="absolute -left-32 top-1/2 -translate-y-1/2 hidden lg:flex flex-col gap-4 w-28 opacity-40">
-                            {[1, 2, 3].map(i => (
-                                <div key={i} className="space-y-1 bg-black/20 p-1.5 rounded border border-white/5 backdrop-blur-sm">
-                                    <div className="h-0.5 w-full bg-white/10 overflow-hidden">
-                                        <div className="h-full bg-emerald-500/50 w-1/2 animate-shimmer-flow" />
+                            {/* Side HUD Telemetry */}
+                            <div className="absolute -left-20 md:-left-32 top-1/2 -translate-y-1/2 hidden sm:flex flex-col gap-4 w-20 md:w-28 opacity-40">
+                                {[1, 2].map(i => (
+                                    <div key={i} className="space-y-1">
+                                        <div className="h-0.5 w-full bg-white/10 overflow-hidden">
+                                            <div className="h-full bg-emerald-500/50 w-1/2 animate-pulse" />
+                                        </div>
+                                        <div className="text-[7px] font-mono text-slate-500 uppercase">Tlm_Stream_{i}</div>
                                     </div>
-                                    <div className="flex justify-between text-[6px] font-mono text-slate-500 uppercase">
-                                        <span>STR_{i}</span>
-                                        <span className="text-emerald-500">{(Math.random() * 99).toFixed(1)}</span>
-                                    </div>
-                                </div>
-                            ))}
+                                ))}
+                            </div>
                         </div>
                     </div>
                 </div>
             )}
+
 
             <Header
                 reset={reset}
@@ -1470,7 +1607,7 @@ function App() {
             </main>
 
             {!loading && <Footer onLegalNav={handleLegalNav} />}
-        </div >
+        </div>
     );
 }
 
