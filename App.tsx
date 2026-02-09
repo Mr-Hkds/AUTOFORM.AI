@@ -1289,209 +1289,145 @@ function App() {
                             0% { opacity: 0; scale: 0.95; filter: blur(10px); }
                             100% { opacity: 1; scale: 1; filter: blur(0px); }
                         }
-                        @keyframes cinematic-bar-in {
-                            0% { height: 0; }
-                            100% { height: 10vh; }
+                        @keyframes core-drift {
+                            0% { transform: translateY(0) scale(1.02); }
+                            50% { transform: translateY(-5px) scale(1); }
+                            100% { transform: translateY(0) scale(1.02); }
                         }
-                        @keyframes data-flow {
-                            0% { transform: translateY(0); }
-                            100% { transform: translateY(-50%); }
+                        @keyframes zen-pulse {
+                            0% { scale: 0.98; opacity: 0.8; }
+                            50% { scale: 1.02; opacity: 1; }
+                            100% { scale: 0.98; opacity: 0.8; }
                         }
-                        @keyframes engagement-flash {
-                            0% { opacity: 0; }
-                            50% { opacity: 1; background: white; }
-                            100% { opacity: 0; }
+                        @keyframes orbit-slow {
+                            from { transform: rotate(0deg); }
+                            to { transform: rotate(360deg); }
                         }
-                        @keyframes hud-scan {
-                            0% { top: 0%; opacity: 0; }
-                            50% { opacity: 0.5; }
-                            100% { top: 100%; opacity: 0; }
+                        .zen-glass {
+                            background: rgba(2, 6, 23, 0.85);
+                            backdrop-filter: blur(40px) saturate(200%);
+                            border: 1px solid rgba(255, 255, 255, 0.12);
+                            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.9);
                         }
-                        @keyframes telemetry-roll {
-                            0% { opacity: 0.5; }
-                            50% { opacity: 1; }
-                            100% { opacity: 0.5; }
-                        }
-                        .letterbox-bar {
+                        .zen-glass::before {
+                            content: '';
                             position: absolute;
-                            left: 0;
-                            right: 0;
-                            background: black;
-                            z-index: 50;
-                            animation: cinematic-bar-in 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-                        }
-                        .neural-stream {
-                            position: absolute;
-                            inset: -100% 0;
-                            font-family: 'JetBrains Mono', monospace;
-                            font-size: 10px;
-                            color: #10b981;
-                            opacity: 0.12;
-                            line-height: 1.2;
-                            user-select: none;
+                            inset: 0;
+                            border-radius: inherit;
+                            padding: 1px;
+                            background: linear-gradient(180deg, rgba(255,255,255,0.15), transparent, rgba(255,255,255,0.08));
+                            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+                            -webkit-mask-composite: xor;
+                            mask-composite: exclude;
                             pointer-events: none;
-                            animation: data-flow 20s linear infinite;
-                            z-index: 5;
-                            white-space: pre;
                         }
-                        .tactical-border {
+                        .data-pixel {
+                            width: 1px;
+                            height: 1px;
+                            background: rgba(16, 185, 129, 0.4);
                             position: absolute;
-                            width: 20px;
-                            height: 20px;
-                            border-color: rgba(16, 185, 129, 0.4);
+                        }
+                        .subtle-noise {
+                            position: absolute;
+                            inset: 0;
+                            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+                            opacity: 0.03;
+                            pointer-events: none;
                         }
                     `}</style>
 
-                    {/* Cinematic Bars */}
-                    <div className="letterbox-bar top-0 border-b border-white/5" />
-                    <div className="letterbox-bar bottom-0 border-t border-white/5" />
+                    {/* DARK BACKDROP OVERLAY */}
+                    <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-sm z-0 animate-[core-inhale_0.4s_ease-out_forwards]" />
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,transparent_0%,rgba(2,6,23,0.8)_100%)] z-[1]" />
 
-                    {/* Engagement Flash Overlay */}
-                    <div className="fixed inset-0 z-[110] pointer-events-none mix-blend-screen opacity-0 animate-[engagement-flash_1.2s_ease-out_3.8s_forwards]" />
+                    {/* ZEN MINIMALIST HUB */}
+                    <div className="relative z-10 w-full max-w-sm mx-auto p-6 md:p-8 animate-[core-inhale_0.5s_ease-out_forwards]">
+                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(16,185,129,0.1),transparent_70%)] animate-pulse" />
 
-                    {/* Background Content */}
-                    <div className="absolute inset-0 bg-black z-0" />
-                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_20%,rgba(16,185,129,0.16),transparent_48%)] z-[1]" />
-                    <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(2,6,23,0.2)_0%,rgba(2,6,23,0.85)_100%)] z-[1]" />
-                    <div className="neural-stream">
-                        {Array(50).fill('01011010 SYNC_CORE_LOAD AUTH_HANDSHAKE_PROCEED\n0x7F2A9B ENGINE_READY NEURAL_LINK_ESTABLISHED\nSYSTEM_INTEGRITY_CHECK_PASS MISSION_VECTOR_LOCKED\n').join('')}
-                    </div>
+                        <div className="zen-glass rounded-[2rem] p-8 md:p-10 flex flex-col items-center text-center relative overflow-hidden group">
+                            <div className="subtle-noise" />
 
-                    {/* TACTICAL COMMAND HUD WRAPPER */}
-                    <div className="relative z-10 w-full flex items-center justify-center p-4 md:p-8 animate-[core-inhale_0.6s_ease-out_forwards]">
+                            {/* Central Progress Core */}
+                            <div className="relative w-32 h-32 md:w-40 md:h-40 mb-10 flex items-center justify-center">
+                                {/* Rotating Orbit Rings */}
+                                <div className="absolute inset-0 border border-white/[0.03] rounded-full" />
+                                <div className="absolute inset-2 border border-dashed border-emerald-500/20 rounded-full animate-[orbit-slow_15s_linear_infinite]" />
+                                <div className="absolute inset-4 border border-white/[0.05] rounded-full" />
 
-                        <div className="relative w-full max-w-lg">
-                            {/* HUD Corners */}
-                            <div className="tactical-border top-0 left-0 border-t-2 border-l-2" />
-                            <div className="tactical-border top-0 right-0 border-t-2 border-r-2" />
-                            <div className="tactical-border bottom-0 left-0 border-b-2 border-l-2" />
-                            <div className="tactical-border bottom-0 right-0 border-b-2 border-r-2" />
+                                {/* Circular SVG Progress */}
+                                <svg className="w-full h-full -rotate-90 relative z-10">
+                                    <circle
+                                        cx="50%" cy="50%" r="48%"
+                                        className="fill-none stroke-white/[0.03] stroke-[1px]"
+                                    />
+                                    <circle
+                                        cx="50%" cy="50%" r="48%"
+                                        className="fill-none stroke-emerald-500/60 stroke-[2px] transition-all duration-700"
+                                        strokeDasharray="100 100"
+                                        strokeDashoffset={100 - launchProgress}
+                                        strokeLinecap="round"
+                                    />
+                                </svg>
 
-                            <div className="glass-panel-premium border border-emerald-400/20 shadow-[0_20px_80px_rgba(16,185,129,0.12)] overflow-hidden relative rounded-2xl max-h-[78vh] overflow-y-auto custom-scrollbar">
-                                <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(135deg,rgba(16,185,129,0.08),transparent_45%,rgba(16,185,129,0.06))]" />
-                                {/* HUD Scan Line */}
-                                <div className="absolute left-0 right-0 h-1 bg-gradient-to-r from-transparent via-emerald-500/30 to-transparent shadow-[0_0_15px_rgba(16,185,129,0.5)] animate-[hud-scan_2s_linear_infinite]" />
-
-                                <div className="p-5 md:p-8 flex flex-col items-center text-center">
-                                    {/* Core Visual */}
-                                    <div className="relative mb-6 md:mb-10">
-                                        <div className="absolute inset-0 bg-emerald-500/10 blur-3xl scale-150 animate-pulse" />
-                                        <div className="w-14 h-14 md:w-20 md:h-20 rounded-xl md:rounded-2xl border border-emerald-500/40 bg-black/40 flex items-center justify-center relative backdrop-blur-3xl overflow-hidden group">
-                                            <div className="absolute inset-0 bg-gradient-to-tr from-emerald-500/10 via-transparent to-transparent group-hover:animate-shimmer-flow" />
-                                            <Cpu className="w-7 h-7 md:w-10 md:h-10 text-emerald-400 group-hover:scale-110 transition-transform duration-500" />
-                                        </div>
-                                        <div className="absolute -top-2 -right-2 px-1.5 py-0.5 bg-emerald-500 text-black text-[8px] font-bold uppercase rounded">Live</div>
-                                    </div>
-
-                                    {/* Mission Status */}
-                                    <div className="space-y-3 md:space-y-4 w-full">
-                                        <div className="flex items-center justify-between rounded-lg border border-white/10 bg-black/30 px-3 py-2">
-                                            <span className="text-[8px] md:text-[10px] font-mono text-slate-500 uppercase tracking-widest">Operation: Synchronize</span>
-                                            <span className="text-[8px] md:text-[10px] font-mono text-emerald-500 font-bold uppercase">{launchStatusLabel}</span>
-                                        </div>
-
-                                        <div className="h-12 md:h-14 border border-emerald-500/20 bg-black/45 rounded-xl flex items-center justify-center relative overflow-hidden group shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
-                                            {/* Decorative Technical Text */}
-                                            <div className="absolute left-2 top-2 text-[6px] font-mono text-slate-700 uppercase tracking-tighter">Memory_Alloc: 512mb</div>
-                                            <div className="absolute right-2 bottom-2 text-[6px] font-mono text-slate-700 uppercase tracking-tighter">Latency: 0.1ms</div>
-
-                                            <span className="text-xs md:text-sm font-mono text-white tracking-[0.2em] md:tracking-[0.3em] font-bold uppercase">
-                                                {currentLaunchStage}
-                                            </span>
-                                        </div>
-                                    </div>
-
-                                    {/* Multi-Stage Progress */}
-                                    <div className="mt-8 w-full space-y-2">
-                                        <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden flex gap-1 p-[1px]">
-                                            {[...Array(20)].map((_, i) => (
-                                                <div
-                                                    key={i}
-                                                    className={`flex-1 h-full rounded-sm transition-all duration-500 ${Math.floor((launchProgress / 100) * 20) > i ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]' : 'bg-white/10'}`}
-                                                />
-                                            ))}
-                                        </div>
-                                        <div className="h-2.5 w-full bg-black/60 border border-emerald-500/15 rounded-full overflow-hidden">
-                                            <div
-                                                className="h-full bg-gradient-to-r from-emerald-500/70 via-emerald-400 to-emerald-500 shadow-[0_0_14px_rgba(16,185,129,0.7)] transition-[width] duration-100"
-                                                style={{ width: `${launchProgress}%` }}
-                                            />
-                                        </div>
-                                        <div className="flex justify-between text-[8px] font-mono text-slate-600 uppercase tracking-widest">
-                                            <span>Sub-Routine Init</span>
-                                            <span>{launchProgress}% · ETA {launchEta}s</span>
-                                        </div>
-
-                                        <div className="grid grid-cols-2 gap-2 pt-2">
-                                            {LAUNCH_STAGES.map((stage, idx) => {
-                                                const state = idx < activeLaunchStageIndex
-                                                    ? 'done'
-                                                    : idx === activeLaunchStageIndex
-                                                        ? 'active'
-                                                        : 'pending';
-
-                                                return (
-                                                    <div
-                                                        key={stage}
-                                                        className={`rounded-lg border px-2 py-1.5 text-left transition-all duration-300 ${state === 'done'
-                                                            ? 'border-emerald-500/30 bg-emerald-500/10'
-                                                            : state === 'active'
-                                                                ? 'border-emerald-400/50 bg-emerald-500/15 shadow-[0_0_20px_rgba(16,185,129,0.15)]'
-                                                                : 'border-white/10 bg-black/30'
-                                                            }`}
-                                                    >
-                                                        <div className="flex items-center gap-1.5">
-                                                            <span className={`h-1.5 w-1.5 rounded-full ${state === 'done'
-                                                                ? 'bg-emerald-500'
-                                                                : state === 'active'
-                                                                    ? 'bg-emerald-400 animate-pulse'
-                                                                    : 'bg-slate-600'
-                                                                }`} />
-                                                            <span className={`text-[8px] font-mono uppercase tracking-wider ${state === 'pending' ? 'text-slate-600' : 'text-emerald-200'}`}>
-                                                                {stage}
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-
-                                        <div className="w-full rounded-lg border border-emerald-500/15 bg-black/35 p-2.5 space-y-1.5">
-                                            {LAUNCH_ACTIVITIES.map((activity, idx) => {
-                                                const done = idx < activeLaunchStageIndex;
-                                                const active = idx === activeLaunchStageIndex;
-                                                return (
-                                                    <div key={activity} className="flex items-center justify-between text-[8px] font-mono uppercase tracking-widest">
-                                                        <span className={done || active ? 'text-emerald-200' : 'text-slate-600'}>{activity}</span>
-                                                        <span className={done ? 'text-emerald-400' : active ? 'text-amber-400 animate-pulse' : 'text-slate-600'}>
-                                                            {done ? 'ok' : active ? 'running' : 'queued'}
-                                                        </span>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-
-                                        <button
-                                            onClick={() => void continueLaunchNow()}
-                                            className="mt-3 w-full rounded-lg border border-emerald-300/40 bg-gradient-to-r from-emerald-500/20 to-emerald-400/10 px-3 py-2 text-[10px] font-mono uppercase tracking-[0.18em] text-emerald-100 hover:from-emerald-500/30 hover:to-emerald-400/20 transition shadow-[0_0_18px_rgba(16,185,129,0.18)]"
-                                        >
-                                            Continue Now • Enter
-                                        </button>
-                                        <p className="mt-1 text-[8px] font-mono uppercase tracking-wider text-slate-400">Need speed? Skip cinematic and jump straight to mission control</p>
-                                    </div>
+                                {/* Inner Pulse */}
+                                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                    <span className="text-3xl md:text-4xl font-light tracking-tighter text-white/90">
+                                        {launchProgress}<span className="text-xs opacity-40 ml-0.5">%</span>
+                                    </span>
+                                    <span className="text-[7px] font-mono text-emerald-500/50 uppercase tracking-[0.4em] mt-1 animate-pulse">
+                                        Syncing
+                                    </span>
                                 </div>
                             </div>
 
-                            {/* Side HUD Telemetry */}
-                            <div className="absolute -left-20 md:-left-32 top-1/2 -translate-y-1/2 hidden sm:flex flex-col gap-4 w-20 md:w-28 opacity-40">
-                                {[1, 2].map(i => (
-                                    <div key={i} className="space-y-1">
-                                        <div className="h-0.5 w-full bg-white/10 overflow-hidden">
-                                            <div className="h-full bg-emerald-500/50 w-1/2 animate-pulse" />
+                            {/* Minimal Content */}
+                            <div className="space-y-6 w-full relative z-10">
+                                <div className="space-y-1">
+                                    <h2 className="text-sm md:text-base font-medium tracking-[0.2em] text-white/90 uppercase opacity-80">
+                                        Mission Sequence
+                                    </h2>
+                                    <p className="text-[10px] font-mono text-emerald-500/60 uppercase tracking-widest italic">
+                                        {currentLaunchStage}
+                                    </p>
+                                </div>
+
+                                {/* Clean Stage Indicator */}
+                                <div className="flex justify-center gap-3">
+                                    {LAUNCH_STAGES.map((_, idx) => (
+                                        <div
+                                            key={idx}
+                                            className={`w-1.5 h-1.5 rounded-full transition-all duration-500 ${idx <= activeLaunchStageIndex
+                                                ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]'
+                                                : 'bg-white/10'
+                                                } ${idx === activeLaunchStageIndex ? 'animate-pulse scale-125' : ''}`}
+                                        />
+                                    ))}
+                                </div>
+
+                                {/* Activity Feed - Ultra Minimal */}
+                                <div className="pt-4 border-t border-white/5 space-y-2">
+                                    {LAUNCH_ACTIVITIES.slice(activeLaunchStageIndex, activeLaunchStageIndex + 2).map((activity, idx) => (
+                                        <div key={activity} className={`flex items-center justify-between text-[8px] font-mono uppercase tracking-widest ${idx === 0 ? 'text-emerald-400' : 'text-white/20'}`}>
+                                            <span className="truncate">{activity}</span>
+                                            <span className={idx === 0 ? 'animate-pulse' : ''}>
+                                                {idx === 0 ? 'Active' : 'Queued'}
+                                            </span>
                                         </div>
-                                        <div className="text-[7px] font-mono text-slate-500 uppercase">Tlm_Stream_{i}</div>
-                                    </div>
-                                ))}
+                                    ))}
+                                </div>
+
+                                {/* Action Button - PREMIUM */}
+                                <div className="pt-2">
+                                    <button
+                                        onClick={() => void continueLaunchNow()}
+                                        className="w-full bg-white/[0.03] hover:bg-white/[0.08] border border-white/10 rounded-xl py-3 text-[10px] tracking-[0.3em] font-medium uppercase text-white/60 transition-all duration-300 hover:text-white hover:border-white/20"
+                                    >
+                                        Proceed Mission • Enter
+                                    </button>
+                                    <p className="text-[7px] text-white/20 uppercase tracking-widest mt-4">
+                                        System Ver 4.2.0 • Zen Core
+                                    </p>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1607,7 +1543,7 @@ function App() {
             </main>
 
             {!loading && <Footer onLegalNav={handleLegalNav} />}
-        </div>
+        </div >
     );
 }
 
