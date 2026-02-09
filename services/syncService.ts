@@ -14,7 +14,13 @@ interface PendingPayment {
  */
 export const savePendingPayment = async (paymentId: string, amount: number, userId: string) => {
     try {
-        const existingRaw = await (window as any).storage.get(PENDING_PAYMENTS_KEY);
+        const storage = (window as any).storage;
+        if (!storage) {
+            console.warn("[SyncService] window.storage is not available. Verification skipping persistence.");
+            return;
+        }
+
+        const existingRaw = await storage.get(PENDING_PAYMENTS_KEY);
         const existing: PendingPayment[] = existingRaw ? JSON.parse(existingRaw) : [];
 
         // Avoid duplicates
@@ -27,7 +33,7 @@ export const savePendingPayment = async (paymentId: string, amount: number, user
             timestamp: Date.now()
         }];
 
-        await (window as any).storage.set(PENDING_PAYMENTS_KEY, JSON.stringify(updated));
+        await storage.set(PENDING_PAYMENTS_KEY, JSON.stringify(updated));
         console.log(`[SyncService] Saved pending payment: ${paymentId}`);
     } catch (error) {
         console.error("[SyncService] Failed to save pending payment:", error);
@@ -39,7 +45,10 @@ export const savePendingPayment = async (paymentId: string, amount: number, user
  */
 export const syncPendingPayments = async () => {
     try {
-        const existingRaw = await (window as any).storage.get(PENDING_PAYMENTS_KEY);
+        const storage = (window as any).storage;
+        if (!storage) return;
+
+        const existingRaw = await storage.get(PENDING_PAYMENTS_KEY);
         if (!existingRaw) return;
 
         const pending: PendingPayment[] = JSON.parse(existingRaw);
