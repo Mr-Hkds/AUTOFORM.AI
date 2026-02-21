@@ -1,15 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { collection, getDocs, query, orderBy, limit, onSnapshot, doc, deleteDoc, updateDoc, Timestamp, where } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, limit, onSnapshot, doc, deleteDoc, updateDoc, Timestamp, where, serverTimestamp, increment } from 'firebase/firestore';
 import { db } from '../services/firebase';
-import { PaymentTransaction, User } from '../types';
-import { CheckCircle, XCircle, Clock, ShieldCheck, ArrowLeft, ArrowRight, Users, DollarSign, RefreshCw, Trash2, Edit2, Activity, CreditCard, TrendingUp, Search, Filter, ChevronDown, Download } from 'lucide-react';
+import { User, TokenRequest } from '../types';
+import { CheckCircle, XCircle, Clock, ShieldCheck, ArrowLeft, ArrowRight, Users, RefreshCw, Trash2, Edit2, Activity, Search, Filter, ChevronDown, Download, Bell } from 'lucide-react';
 
 const AdminDashboard = ({ user, onBack }: { user: User; onBack: () => void }) => {
-    const [transactions, setTransactions] = useState<PaymentTransaction[]>([]);
     const [loading, setLoading] = useState(true);
     const [totalUsers, setTotalUsers] = useState(0);
-    const [totalRevenue, setTotalRevenue] = useState(0);
-    const [autoRefreshing, setAutoRefreshing] = useState(false);
+    const [totalTokensUsed, setTotalTokensUsed] = useState(0);
 
     // User Management State
     const [showUsersModal, setShowUsersModal] = useState(false);
@@ -17,31 +15,26 @@ const AdminDashboard = ({ user, onBack }: { user: User; onBack: () => void }) =>
     const [loadingUsers, setLoadingUsers] = useState(false);
     const [cleaningUsers, setCleaningUsers] = useState(false);
 
-    const [historyModalOpen, setHistoryModalOpen] = useState(false);
-    const [viewingTransactionHistory, setViewingTransactionHistory] = useState<PaymentTransaction[]>([]);
-    const [userMap, setUserMap] = useState<Record<string, string>>({}); // ID -> Email Map
+    // Token Requests State
+    const [tokenRequests, setTokenRequests] = useState<TokenRequest[]>([]);
+    const [loadingRequests, setLoadingRequests] = useState(false);
+    const [requestFilter, setRequestFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
+    // New state for multi-select
+    const [selectedRequests, setSelectedRequests] = useState<Set<string>>(new Set());
 
     // Search & Filter State
-    const [searchTerm, setSearchTerm] = useState('');
-    const [filterStatus, setFilterStatus] = useState<'all' | 'success' | 'pending' | 'failed'>('all');
-
     const [userSearchTerm, setUserSearchTerm] = useState('');
     const [userFilterType, setUserFilterType] = useState<'all' | 'premium' | 'free' | 'inactive'>('all');
 
-    // Derived State: Filtered Transactions
-    const filteredTransactions = transactions.filter(tx => {
-        const term = searchTerm.toLowerCase();
-        const email = (tx.userEmail || userMap[tx.userId] || '').toLowerCase();
-        const id = (tx.paymentId || tx.id).toLowerCase();
-        const matchesSearch = email.includes(term) || id.includes(term);
-
-        const matchesStatus = filterStatus === 'all' ? true :
-            filterStatus === 'success' ? (tx.status === 'captured' || tx.status === 'success' || tx.status === 'completed') :
-                filterStatus === 'pending' ? (tx.status === 'created' || tx.status === 'authorized') :
-                    (tx.status === 'failed');
-
-        return matchesSearch && matchesStatus;
+    let filteredRequests = tokenRequests.filter(req => {
+        if (requestFilter === 'all') return true;
+        return req.status === requestFilter;
     });
+
+    // Limit approved/rejected to latest 10
+    if (requestFilter === 'approved' || requestFilter === 'rejected') {
+        filteredRequests = filteredRequests.slice(0, 10);
+    }
 
     // Derived State: Filtered Users
     const filteredUsers = allUsers.filter(u => {
@@ -58,95 +51,116 @@ const AdminDashboard = ({ user, onBack }: { user: User; onBack: () => void }) =>
 
     const fetchData = async () => {
         setLoading(true);
-
         try {
-            // 0. Fetch Users First to build User Map (for fallback emails)
             const usersSnapshot = await getDocs(collection(db, 'users'));
-            const uMap: Record<string, string> = {};
-            usersSnapshot.forEach(doc => {
-                const u = doc.data() as User;
-                if (u.email) uMap[doc.id] = u.email;
-            });
-            setUserMap(uMap);
             setTotalUsers(usersSnapshot.size);
 
-            // 1. Fetch ALL transactions
-            const q = query(collection(db, 'transactions'), orderBy('createdAt', 'desc'));
-            const snapshot = await getDocs(q);
-            const allTxns = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PaymentTransaction));
-
-            // 2. Calculate Revenue (Include EVERYTHING: success, completed, captured, archived or not)
-            let totalRev = 0;
-            allTxns.forEach(tx => {
-                if (tx.status === 'success' || tx.status === 'completed' || tx.status === 'captured') {
-                    totalRev += (tx.amount || 0);
-                }
+            let tokensUsed = 0;
+            usersSnapshot.forEach(doc => {
+                const u = doc.data() as User;
+                tokensUsed += (u.responsesUsed || 0);
             });
-            setTotalRevenue(totalRev);
-
-            // 3. Filter for INBOX (Only show Un-Archived transactions in the main list)
-            // We assume 'archived' is undefined or false for new ones.
-            const inbox = allTxns.filter(tx => !(tx as any).archived);
-            setTransactions(inbox.slice(0, 50));
-
-            // Store full history for the modal
-            setViewingTransactionHistory(allTxns);
-
+            setTotalTokensUsed(tokensUsed);
         } catch (e) {
             console.error('Failed to fetch data:', e);
         }
-
         setLoading(false);
+    };
+
+    const fetchTokenRequests = async () => {
+        setLoadingRequests(true);
+        try {
+            const q = query(collection(db, 'tokenRequests'));
+            const snapshot = await getDocs(q);
+            const reqs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as TokenRequest));
+            // Sort client-side latest first
+            reqs.sort((a, b) => {
+                const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+                const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+                return timeB - timeA;
+            });
+            setTokenRequests(reqs);
+        } catch (error) {
+            console.error("Error fetching token requests:", error);
+        } finally {
+            setLoadingRequests(false);
+        }
     };
 
     useEffect(() => {
         fetchData();
-
-        // Real-time listener for new transactions
-        const transactionsQuery = query(
-            collection(db, 'transactions'),
-            orderBy('createdAt', 'desc'),
-            limit(10)
-        );
-
-        const unsubscribe = onSnapshot(transactionsQuery, (snapshot) => {
-            snapshot.docChanges().forEach((change) => {
-                if (change.type === 'added') {
-                    console.log('🔄 New transaction detected');
-                    // Refresh full data to update stats
-                    setAutoRefreshing(true);
-                    fetchData().then(() => {
-                        setTimeout(() => setAutoRefreshing(false), 1000);
-                    });
-                }
-            });
-        });
-
-        // Auto-refresh every 30 seconds as backup
-        const refreshInterval = setInterval(() => {
-            setAutoRefreshing(true);
-            fetchData().then(() => {
-                setTimeout(() => setAutoRefreshing(false), 1000);
-            });
-        }, 30000);
-
-        return () => {
-            unsubscribe();
-            clearInterval(refreshInterval);
-        };
+        fetchTokenRequests();
     }, []);
 
-    // Handle Archive (Soft Delete)
-    const handleArchiveTransaction = async (txId: string) => {
+    const handleApproveRequest = async (req: TokenRequest) => {
+        if (!confirm(`Approve request of ${req.requestedAmount} tokens for ${req.userName}?`)) return;
         try {
-            await updateDoc(doc(db, 'transactions', txId), {
-                archived: true
+            await updateDoc(doc(db, 'tokenRequests', req.id!), {
+                status: 'approved',
+                processedAt: serverTimestamp()
             });
-            // Remove from local Inbox view only
-            setTransactions(prev => prev.filter(t => t.id !== txId));
-        } catch (error) {
-            console.error("Failed to archive:", error);
-            alert("Failed to dismiss transaction.");
+            await updateDoc(doc(db, 'users', req.userId), {
+                tokens: increment(req.requestedAmount),
+                isPremium: true
+            });
+            setTokenRequests(prev => prev.map(r => r.id === req.id ? { ...r, status: 'approved' } : r));
+
+            // Re-fetch users stats fully reflecting increment
+            fetchData();
+            if (showUsersModal) fetchAllUsers();
+        } catch (e) {
+            console.error("Failed to approve request:", e);
+            alert("Error approving request.");
+        }
+    };
+
+    const handleMultiApprove = async () => {
+        if (selectedRequests.size === 0) return;
+        if (!confirm(`Approve ${selectedRequests.size} selected requests?`)) return;
+
+        setLoadingRequests(true);
+        try {
+            const promises = Array.from(selectedRequests).map(async (reqId) => {
+                const req = tokenRequests.find(r => r.id === reqId);
+                if (!req || req.status !== 'pending') return;
+
+                await updateDoc(doc(db, 'tokenRequests', req.id!), {
+                    status: 'approved',
+                    processedAt: serverTimestamp()
+                });
+                await updateDoc(doc(db, 'users', req.userId), {
+                    tokens: increment(req.requestedAmount),
+                    isPremium: true
+                });
+            });
+
+            await Promise.all(promises);
+
+            // Re-fetch completely to be safe
+            await fetchTokenRequests();
+            await fetchData();
+            if (showUsersModal) fetchAllUsers();
+
+            setSelectedRequests(new Set()); // Clear selection
+        } catch (e) {
+            console.error("Failed to multi-approve requests:", e);
+            alert("Error processing multiple approvals.");
+        } finally {
+            setLoadingRequests(false);
+        }
+    };
+
+    const handleRejectRequest = async (req: TokenRequest) => {
+        if (!confirm(`Reject request from ${req.userName}?`)) return;
+        try {
+            await updateDoc(doc(db, 'tokenRequests', req.id!), {
+                status: 'rejected',
+                processedAt: serverTimestamp()
+            });
+            setTokenRequests(prev => prev.map(r => r.id === req.id ? { ...r, status: 'rejected' } : r));
+        } catch (e) {
+            console.error("Failed to reject request:", e);
+            alert("Error rejecting request.");
         }
     };
 
@@ -325,31 +339,27 @@ const AdminDashboard = ({ user, onBack }: { user: User; onBack: () => void }) =>
 
             {/* Stats Check - KPIs */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mb-8 sm:mb-12">
-
-                {/* REVENUE CARD - Clickable to View History */}
-                <button
-                    onClick={() => setHistoryModalOpen(true)}
-                    className="glass-panel p-6 sm:p-8 rounded-2xl border border-amber-500/20 bg-gradient-to-br from-amber-500/5 to-transparent relative overflow-hidden group text-left transition-all hover:scale-[1.01] hover:shadow-2xl hover:shadow-amber-900/20"
-                >
+                {/* TOKENS USED CARD */}
+                <div className="glass-panel p-6 sm:p-8 rounded-2xl border border-emerald-500/20 bg-gradient-to-br from-emerald-500/5 to-transparent relative overflow-hidden group text-left transition-all hover:scale-[1.01] hover:shadow-2xl hover:shadow-emerald-900/20">
                     <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                        <DollarSign className="w-24 h-24 text-amber-500" />
+                        <Activity className="w-24 h-24 text-emerald-500" />
                     </div>
                     <div className="relative z-10">
-                        <div className="flex items-center gap-3 mb-2 text-amber-400">
-                            <div className="p-2 bg-amber-500/10 rounded-lg">
-                                <TrendingUp className="w-6 h-6" />
+                        <div className="flex items-center gap-3 mb-2 text-emerald-400">
+                            <div className="p-2 bg-emerald-500/10 rounded-lg">
+                                <Activity className="w-6 h-6" />
                             </div>
-                            <span className="text-sm font-bold uppercase tracking-widest">Total Revenue</span>
+                            <span className="text-sm font-bold uppercase tracking-widest">Tokens Consumed</span>
                         </div>
                         <div className="text-4xl sm:text-5xl font-bold text-white mb-2 tracking-tight">
-                            ₹{totalRevenue.toLocaleString()}
+                            {loading ? <RefreshCw className="w-8 h-8 animate-spin" /> : totalTokensUsed.toLocaleString()}
                         </div>
-                        <div className="flex items-center gap-2 text-slate-400 text-sm group-hover:text-amber-300 transition-colors">
-                            <span>View All Transactions</span>
-                            <ArrowRight className="w-4 h-4" />
+                        <div className="flex items-center gap-2 text-slate-400 text-sm group-hover:text-emerald-300 transition-colors">
+                            <span>Platform Wide Usage</span>
+                            <Activity className="w-4 h-4" />
                         </div>
                     </div>
-                </button>
+                </div>
 
                 {/* USERS CARD */}
                 <button
@@ -377,25 +387,28 @@ const AdminDashboard = ({ user, onBack }: { user: User; onBack: () => void }) =>
                 </button>
             </div>
 
-            {/* INBOX (Recent Unread Transactions) */}
-            <div className="glass-panel rounded-xl overflow-hidden border border-white/10">
+            {/* TOKEN REQUESTS INBOX */}
+            <div className="glass-panel rounded-xl overflow-hidden border border-white/10 mb-8 sm:mb-12">
                 <div className="px-4 sm:px-6 py-4 border-b border-white/5 bg-white/[0.02] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
 
                     <div className="flex items-center gap-4">
                         <h3 className="font-bold text-white text-sm uppercase tracking-wider flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                            Inbox
+                            <div className={`w-2 h-2 rounded-full ${requestFilter === 'pending' ? 'bg-amber-500 animate-pulse' : 'bg-slate-500'}`} />
+                            Token Requests
                         </h3>
 
                         {/* Status Filter */}
                         <div className="flex items-center gap-1 bg-black/20 p-1 rounded-lg border border-white/5">
-                            {(['all', 'success', 'pending', 'failed'] as const).map((status) => (
+                            {(['all', 'pending', 'approved', 'rejected'] as const).map((status) => (
                                 <button
                                     key={status}
-                                    onClick={() => setFilterStatus(status)}
-                                    className={`px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md transition-all ${filterStatus === status
-                                            ? 'bg-amber-500 text-black shadow-lg shadow-amber-900/20'
-                                            : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'
+                                    onClick={() => {
+                                        setRequestFilter(status);
+                                        setSelectedRequests(new Set()); // Clear selection on filter change
+                                    }}
+                                    className={`px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md transition-all ${requestFilter === status
+                                        ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-900/20'
+                                        : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'
                                         }`}
                                 >
                                     {status}
@@ -405,138 +418,132 @@ const AdminDashboard = ({ user, onBack }: { user: User; onBack: () => void }) =>
                     </div>
 
                     <div className="flex items-center gap-3 w-full sm:w-auto">
-                        {/* Search Bar */}
-                        <div className="relative flex-1 sm:flex-initial">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
-                            <input
-                                type="text"
-                                placeholder="Search email or ID..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full sm:w-64 bg-black/20 border border-white/10 rounded-lg pl-9 pr-3 py-1.5 text-xs text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-amber-500/50 transition-colors"
-                            />
-                        </div>
-
+                        {requestFilter === 'pending' && selectedRequests.size > 0 && (
+                            <button
+                                onClick={handleMultiApprove}
+                                disabled={loadingRequests}
+                                className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/20 rounded-lg text-xs font-bold transition-all tracking-wide disabled:opacity-50"
+                            >
+                                APPROVE SELECTED ({selectedRequests.size})
+                            </button>
+                        )}
                         <div className="flex items-center gap-2 flex-shrink-0">
-                            {autoRefreshing && (
+                            {loadingRequests && (
                                 <RefreshCw className="w-3.5 h-3.5 text-emerald-500 animate-spin" />
                             )}
-                            <button onClick={fetchData} className="p-1.5 rounded-lg hover:bg-white/5 text-slate-500 hover:text-white transition-colors">
+                            <button onClick={fetchTokenRequests} className="p-1.5 rounded-lg hover:bg-white/5 text-slate-500 hover:text-white transition-colors">
                                 <RefreshCw className="w-3.5 h-3.5" />
                             </button>
                         </div>
                     </div>
                 </div>
-                {loading ? (
-                    <div className="p-12 text-center text-slate-500 text-sm">Loading inbox...</div>
-                ) : filteredTransactions.length === 0 ? (
-                    <div className="p-16 text-center text-slate-500 text-sm flex flex-col items-center gap-4">
-                        <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center border border-white/5">
-                            <Search className="w-6 h-6 text-slate-600" />
+
+                <div className="flex-1 overflow-auto p-0 max-h-[600px]">
+                    {loadingRequests && filteredRequests.length === 0 ? (
+                        <div className="p-12 text-center flex flex-col items-center">
+                            <RefreshCw className="w-8 h-8 text-emerald-500 animate-spin mb-4" />
+                            <p className="text-slate-400 text-sm">Loading requests...</p>
                         </div>
-                        <div className="space-y-1">
-                            <p className="text-slate-400 font-medium">No transactions found</p>
-                            <p className="text-xs text-slate-600">Try adjusting your filters or search terms</p>
+                    ) : filteredRequests.length === 0 ? (
+                        <div className="p-16 text-center text-slate-500 text-sm flex flex-col items-center gap-4">
+                            <div className="w-16 h-16 rounded-full bg-emerald-500/5 flex items-center justify-center border border-emerald-500/10">
+                                <CheckCircle className="w-6 h-6 text-emerald-500/50" />
+                            </div>
+                            <div className="space-y-1">
+                                <p className="text-slate-300 font-medium text-lg">{requestFilter === 'pending' ? 'All Caught Up!' : 'No Requests Found'}</p>
+                                <p className="text-sm text-slate-500">There are no token requests matching your criteria.</p>
+                            </div>
                         </div>
-                    </div>
-                ) : (
-                    <div className="divide-y divide-white/5">
-                        {filteredTransactions.map((tx) => (
-                            <div key={tx.id} className="p-4 sm:p-6 hover:bg-white/[0.02] transition-colors group">
-                                <div className="flex items-start gap-3">
-                                    {/* Status Icon */}
-                                    <div className="mt-1">
-                                        {(tx.status === 'success' || tx.status === 'completed' || tx.status === 'captured') ? (
-                                            <CheckCircle className="w-5 h-5 text-emerald-400" />
-                                        ) : (
-                                            <Clock className="w-5 h-5 text-amber-400" />
+                    ) : (
+                        <div className="divide-y divide-white/5">
+                            {/* Select All Toggle for Pending */}
+                            {requestFilter === 'pending' && filteredRequests.length > 0 && (
+                                <div className="p-3 sm:px-6 flex items-center gap-3 bg-white/[0.01]">
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedRequests.size === filteredRequests.length && filteredRequests.length > 0}
+                                        onChange={(e) => {
+                                            if (e.target.checked) {
+                                                setSelectedRequests(new Set(filteredRequests.map(r => r.id!)));
+                                            } else {
+                                                setSelectedRequests(new Set());
+                                            }
+                                        }}
+                                        className="w-4 h-4 rounded border-slate-700 bg-slate-900/50 text-emerald-500 focus:ring-emerald-500/50 focus:ring-offset-slate-950"
+                                    />
+                                    <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Select All Pending</span>
+                                </div>
+                            )}
+
+                            {filteredRequests.map(req => (
+                                <div key={req.id} className={`p-4 sm:p-6 hover:bg-white/[0.04] transition-colors flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between ${selectedRequests.has(req.id!) ? 'bg-emerald-500/5' : ''}`}>
+                                    <div className="flex items-start gap-4 flex-1">
+                                        {/* Checkbox for selection (only if pending) */}
+                                        {req.status === 'pending' && (
+                                            <div className="pt-1.5">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedRequests.has(req.id!)}
+                                                    onChange={(e) => {
+                                                        const newSet = new Set(selectedRequests);
+                                                        if (e.target.checked) newSet.add(req.id!);
+                                                        else newSet.delete(req.id!);
+                                                        setSelectedRequests(newSet);
+                                                    }}
+                                                    className="w-4 h-4 rounded border-slate-700 bg-slate-900/50 text-emerald-500 focus:ring-emerald-500/50 focus:ring-offset-slate-950"
+                                                />
+                                            </div>
                                         )}
-                                    </div>
 
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                            {/* Mailto Link - Direct */}
-                                            <a
-                                                href={`mailto:${tx.userEmail || userMap[tx.userId]}`}
-                                                target="_blank"
-                                                rel="noreferrer"
-                                                className="font-medium text-white text-sm sm:text-base hover:text-amber-400 transition-colors underline decoration-dotted underline-offset-4"
-                                            >
-                                                {tx.userEmail || userMap[tx.userId] || 'Unknown Email'}
-                                            </a>
-                                            <span className={`px-2 py-0.5 rounded text-[10px] bg-white/5 text-slate-400 border border-white/10 uppercase font-bold`}>
-                                                {tx.status}
-                                            </span>
-                                        </div>
-                                        <div className="text-[10px] sm:text-xs text-slate-500 font-mono mb-2">
-                                            ID: {tx.paymentId || tx.id}
-                                        </div>
-
-                                        <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 sm:gap-6 text-xs sm:text-sm">
-                                            <div className="font-mono text-emerald-400 font-bold">₹{tx.amount}</div>
-                                            <div className="font-mono text-amber-400 font-bold">{tx.tokens} Tokens</div>
-                                            <div className="text-slate-500 text-[10px]">
-                                                {tx.createdAt?.toDate ? tx.createdAt.toDate().toLocaleString() : 'Just now'}
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <h3 className="text-lg font-bold text-white">{req.userName}</h3>
+                                                <span className="text-xs text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded font-mono font-bold border border-emerald-500/20">
+                                                    +{req.requestedAmount} TOKENS
+                                                </span>
+                                                {req.status !== 'pending' && (
+                                                    <span className={`text-[10px] px-2 py-0.5 rounded uppercase font-bold ${req.status === 'approved' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
+                                                        {req.status}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="text-sm text-slate-400 font-medium">
+                                                <a href={`mailto:${req.userEmail}`} className="hover:text-amber-300 hover:underline">{req.userEmail}</a>
+                                            </div>
+                                            <div className="text-[10px] text-slate-500 uppercase tracking-widest mt-2 flex items-center gap-1">
+                                                <Clock className="w-3 h-3" />
+                                                {req.createdAt?.toDate ? req.createdAt.toDate().toLocaleString() : 'Recent'}
                                             </div>
                                         </div>
+                                        <div className="flex w-full sm:w-auto items-center gap-2 pt-2 sm:pt-0 border-t border-white/5 sm:border-t-0">
+                                            {req.status === 'pending' ? (
+                                                <>
+                                                    <button
+                                                        onClick={() => handleRejectRequest(req)}
+                                                        className="flex-1 sm:flex-none px-4 py-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 hover:text-red-300 rounded-lg text-sm font-bold transition-all transition-colors tracking-wide"
+                                                    >
+                                                        REJECT
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleApproveRequest(req)}
+                                                        className="flex-1 sm:flex-none px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/20 rounded-lg text-sm font-bold transition-all tracking-wide"
+                                                    >
+                                                        APPROVE
+                                                    </button>
+                                                </>
+                                            ) : (
+                                                <div className="text-[10px] text-slate-500 uppercase tracking-widest flex items-center gap-1">
+                                                    {req.processedAt?.toDate ? `Processed: ${req.processedAt.toDate().toLocaleString()}` : ''}
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
-
-                                    {/* DISMISS BUTTON (Archives, does not delete) */}
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleArchiveTransaction(tx.id!);
-                                        }}
-                                        className="p-2 opacity-50 group-hover:opacity-100 bg-white/5 hover:bg-slate-700 text-slate-400 hover:text-white rounded-lg transition-all"
-                                        title="Mark as Read (Archive)"
-                                    >
-                                        <CheckCircle className="w-4 h-4" />
-                                    </button>
                                 </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
-            </div>
-
-            {/* HISTORY MODAL (Triggered by Revenue Card) */}
-            {historyModalOpen && (
-                <div className="fixed inset-0 z-[160] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
-                    <div className="bg-[#0a0a0a] rounded-xl border border-white/10 w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl">
-                        <div className="p-6 border-b border-white/10 flex items-center justify-between">
-                            <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                                <Activity className="w-5 h-5 text-amber-500" />
-                                Full Transaction History
-                            </h2>
-                            <button onClick={() => setHistoryModalOpen(false)} className="p-2 hover:bg-white/5 rounded-full text-slate-400 hover:text-white">
-                                <XCircle className="w-6 h-6" />
-                            </button>
+                            ))}
                         </div>
-                        <div className="flex-1 overflow-auto p-0">
-                            <table className="w-full text-left text-sm text-slate-400">
-                                <thead className="bg-white/5 text-xs uppercase font-bold text-slate-500 sticky top-0">
-                                    <tr>
-                                        <th className="p-4">Date</th>
-                                        <th className="p-4">User</th>
-                                        <th className="p-4">Amount</th>
-                                        <th className="p-4">Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-white/5">
-                                    {viewingTransactionHistory.map(tx => (
-                                        <tr key={tx.id} className="hover:bg-white/[0.02]">
-                                            <td className="p-4">{tx.createdAt?.toDate ? tx.createdAt.toDate().toLocaleDateString() : '-'}</td>
-                                            <td className="p-4">{tx.userEmail || userMap[tx.userId] || 'Unknown User'}</td>
-                                            <td className="p-4 font-mono text-emerald-400">₹{tx.amount}</td>
-                                            <td className="p-4">{tx.status}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+                    )}
                 </div>
-            )}
+            </div>
 
             {/* User List Modal */}
             {showUsersModal && (
