@@ -183,8 +183,12 @@ const Step2Dashboard = React.memo((props: Step2DashboardProps) => {
                                 <Sparkles className="w-5 h-5 text-emerald-400" />
                             </div>
                             <div>
-                                <p className="text-sm font-semibold text-white">Smart defaults configured</p>
-                                <p className="text-xs text-slate-400 mt-0.5">Everything is ready to go. Adjust settings below or hit <span className="text-emerald-400 font-semibold">Launch</span> at the bottom to start.</p>
+                                <p className="text-sm font-semibold text-white">How it works</p>
+                                <p className="text-xs text-slate-400 mt-0.5">
+                                    <span className="text-amber-400 font-semibold">Step 1:</span> Review your questions & adjust weightages below →
+                                    <span className="text-amber-400 font-semibold">Step 2:</span> Configure speed & count →
+                                    <span className="text-emerald-400 font-semibold">Launch!</span>
+                                </p>
                             </div>
                         </div>
                         <button
@@ -206,9 +210,9 @@ const Step2Dashboard = React.memo((props: Step2DashboardProps) => {
                 </div>
             )}
 
-            {/* TAB BAR */}
+            {/* STEP INDICATOR TAB BAR */}
             <div className="flex gap-1 p-1 bg-white/[0.03] rounded-xl border border-white/5 mb-6">
-                {tabs.map(tab => (
+                {tabs.map((tab, idx) => (
                     <button
                         key={tab.key}
                         onClick={() => setActiveTab(tab.key)}
@@ -217,6 +221,10 @@ const Step2Dashboard = React.memo((props: Step2DashboardProps) => {
                             : 'text-slate-500 hover:text-slate-300 hover:bg-white/[0.03] border border-transparent'
                             }`}
                     >
+                        <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold flex-shrink-0 ${activeTab === tab.key
+                            ? 'bg-amber-500 text-black'
+                            : 'bg-white/10 text-slate-500'
+                            }`}>{idx + 1}</span>
                         {tab.icon}
                         <span className="hidden sm:inline">{tab.label}</span>
                         {tab.badge && (
@@ -236,6 +244,16 @@ const Step2Dashboard = React.memo((props: Step2DashboardProps) => {
             {/* ─────────────────────────────────────── */}
             {activeTab === 'settings' && (
                 <div className="space-y-8 animate-fade-in-up">
+
+                    {/* BREADCRUMB HINT */}
+                    <button
+                        onClick={() => setActiveTab('questions')}
+                        className="group flex items-center gap-2 text-[10px] text-slate-600 hover:text-slate-300 font-medium transition-all"
+                    >
+                        <ArrowLeft className="w-3 h-3 group-hover:-translate-x-0.5 transition-transform" />
+                        <span>← Back to Questions</span>
+                        <CheckCircle className="w-3 h-3 text-emerald-500" />
+                    </button>
 
                     {/* RESPONSE COUNT */}
                     <div className="glass-panel p-6 rounded-xl">
@@ -482,6 +500,21 @@ const Step2Dashboard = React.memo((props: Step2DashboardProps) => {
                             <p className="text-sm">No fields matching "{questionSearch}"</p>
                         </div>
                     )}
+
+                    {/* NEXT STEP CTA */}
+                    <div className="mt-8 flex flex-col items-center gap-3 animate-fade-in-up">
+                        <div className="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+                        <p className="text-xs text-slate-500 font-medium">Done adjusting weights?</p>
+                        <button
+                            onClick={() => setActiveTab('settings')}
+                            className="group flex items-center gap-3 px-8 py-4 rounded-xl bg-gradient-to-r from-amber-500/10 to-amber-600/10 border border-amber-500/20 hover:border-amber-500/40 text-amber-400 hover:text-amber-300 font-bold text-sm uppercase tracking-wider transition-all duration-200 active:scale-95 shadow-lg shadow-amber-500/5 hover:shadow-amber-500/15"
+                        >
+                            <Settings className="w-4 h-4" />
+                            Next: Configure Settings
+                            <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                        </button>
+                        <p className="text-[10px] text-slate-600">Set response count, speed & names</p>
+                    </div>
                 </div>
             )}
 
