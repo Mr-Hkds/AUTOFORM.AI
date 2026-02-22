@@ -10,12 +10,12 @@ interface TokenModalProps {
 }
 
 const TokenModal: React.FC<TokenModalProps> = ({ onClose, onSubmit, status, message, currentTokens }) => {
-    const [amount, setAmount] = useState<number>(250);
+    const [amount, setAmount] = useState<number | ''>(250);
     const MAX_LIMIT = 500;
     const presets = [100, 250, 500];
 
     const handleSubmit = () => {
-        if (amount >= 1 && amount <= MAX_LIMIT) {
+        if (typeof amount === 'number' && amount >= 1 && amount <= MAX_LIMIT) {
             onSubmit(amount);
         }
     };
@@ -92,18 +92,18 @@ const TokenModal: React.FC<TokenModalProps> = ({ onClose, onSubmit, status, mess
                             {/* Selection Grid */}
                             <div className="space-y-3">
                                 <div className="flex justify-between items-center px-1">
-                                    <label className="text-[9px] font-bold text-slate-600 uppercase tracking-widest">Select Amount</label>
-                                    <span className="text-[10px] font-mono text-[#D4AF37]">BAL: {currentTokens}</span>
+                                    <label className="text-[9px] font-bold text-[#D4AF37]/70 uppercase tracking-widest">Select Amount</label>
+                                    <span className="text-[10px] font-mono text-[#D4AF37] px-2 py-0.5 bg-[#D4AF37]/10 rounded-md border border-[#D4AF37]/20">BAL: {currentTokens}</span>
                                 </div>
-                                <div className="grid grid-cols-3 gap-2">
+                                <div className="grid grid-cols-3 gap-3">
                                     {presets.map((val) => (
                                         <button
                                             key={val}
                                             onClick={() => setAmount(val)}
                                             disabled={status === 'submitting' || isSuccess}
-                                            className={`h-11 rounded-xl font-mono text-sm font-bold transition-all border ${amount === val
-                                                    ? 'bg-[#D4AF37]/10 border-[#D4AF37] text-[#D4AF37]'
-                                                    : 'bg-white/5 border-white/5 text-slate-500 hover:text-white'
+                                            className={`h-12 rounded-xl font-mono text-sm font-bold transition-all duration-300 border active:scale-95 ${amount === val
+                                                ? 'bg-[#D4AF37]/10 border-[#D4AF37]/50 text-[#D4AF37] shadow-[0_0_15px_rgba(212,175,55,0.15)]'
+                                                : 'bg-[#0a0a0a] border-white/5 text-slate-500 hover:text-white hover:border-white/20 hover:bg-white/5'
                                                 } disabled:opacity-30`}
                                         >
                                             {val}
@@ -115,21 +115,22 @@ const TokenModal: React.FC<TokenModalProps> = ({ onClose, onSubmit, status, mess
                             {/* Custom Field */}
                             <div className="space-y-3">
                                 <div className="flex justify-between items-center px-1">
-                                    <label className="text-[9px] font-bold text-slate-600 uppercase tracking-widest">Custom</label>
-                                    <span className="text-[8px] font-mono text-slate-700 uppercase">Max {MAX_LIMIT} Units</span>
+                                    <label className="text-[9px] font-bold text-[#D4AF37]/70 uppercase tracking-widest">Custom Target</label>
+                                    <span className="text-[9px] font-mono text-slate-500 uppercase">Max {MAX_LIMIT} Units</span>
                                 </div>
-                                <div className="relative">
+                                <div className="relative group">
+                                    <div className="absolute inset-0 bg-gradient-to-r from-[#D4AF37]/0 via-[#D4AF37]/5 to-[#D4AF37]/0 opacity-0 group-focus-within:opacity-100 transition-opacity duration-500 rounded-2xl pointer-events-none" />
                                     <input
                                         type="number"
                                         min="1"
                                         max={MAX_LIMIT}
                                         value={amount}
-                                        onChange={(e) => setAmount(Number(e.target.value))}
+                                        onChange={(e) => setAmount(e.target.value === '' ? '' : Number(e.target.value))}
                                         disabled={status === 'submitting' || isSuccess}
-                                        className="w-full bg-black border border-white/5 rounded-2xl px-6 py-5 text-white focus:border-[#D4AF37]/30 focus:outline-none font-mono text-3xl tracking-tighter disabled:opacity-30"
+                                        className="w-full bg-[#0a0a0a] border border-white/10 hover:border-white/20 rounded-2xl px-6 py-5 text-white focus:border-[#D4AF37]/50 focus:bg-[#030303] focus:outline-none focus:ring-4 focus:ring-[#D4AF37]/10 font-mono text-4xl tracking-tighter disabled:opacity-30 transition-all duration-300 shadow-[inset_0_2px_10px_rgba(0,0,0,0.5)] relative z-10"
                                     />
-                                    <div className="absolute right-6 top-1/2 -translate-y-1/2 text-[10px] uppercase font-mono text-slate-800 tracking-widest pointer-events-none">
-                                        Tokens
+                                    <div className="absolute right-6 top-1/2 -translate-y-1/2 flex items-center gap-2 pointer-events-none transition-all duration-300 z-20">
+                                        <span className="text-[10px] uppercase font-mono text-[#D4AF37]/40 tracking-widest group-focus-within:text-[#D4AF37]/70">Tokens</span>
                                     </div>
                                 </div>
                             </div>
@@ -150,10 +151,10 @@ const TokenModal: React.FC<TokenModalProps> = ({ onClose, onSubmit, status, mess
                         <div className="space-y-4">
                             <button
                                 onClick={handleSubmit}
-                                disabled={status === 'submitting' || amount < 1 || amount > MAX_LIMIT}
+                                disabled={status === 'submitting' || amount === '' || amount < 1 || amount > MAX_LIMIT}
                                 className={`w-full py-5 rounded-2xl text-[10px] font-bold uppercase tracking-[0.4em] transition-all duration-300 active:scale-[0.98] flex items-center justify-center gap-3 relative overflow-hidden ${status === 'submitting'
-                                        ? 'bg-slate-900 text-slate-600'
-                                        : 'bg-gradient-to-br from-[#D4AF37] to-[#8A6E2F] text-black shadow-lg shadow-amber-900/10'
+                                    ? 'bg-slate-900 text-slate-600'
+                                    : 'bg-gradient-to-br from-[#D4AF37] to-[#8A6E2F] text-black shadow-lg shadow-amber-900/10'
                                     } disabled:opacity-30 disabled:cursor-not-allowed`}
                             >
                                 {status === 'submitting' ? (
