@@ -183,8 +183,8 @@ export const checkPendingRequest = async (uid: string): Promise<boolean> => {
 
 export const submitTokenRequest = async (user: User, amount: number): Promise<{ success: boolean; message: string }> => {
     try {
-        if (amount < 1 || amount > 200) {
-            return { success: false, message: "Request amount must be between 1 and 200." };
+        if (amount < 1 || amount > 500) {
+            return { success: false, message: "Request amount must be between 1 and 500." };
         }
 
         const hasPending = await checkPendingRequest(user.uid);

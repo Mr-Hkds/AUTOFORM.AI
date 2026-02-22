@@ -26,6 +26,7 @@ import LegalPage from './components/LegalPage';
 import MatrixReveal from './components/MatrixReveal';
 import Step2Dashboard from './components/Step2Dashboard';
 import RestoreConfigModal from './components/RestoreConfigModal';
+import TokenModal from './components/TokenModal';
 import { saveFormConfig, loadFormConfig, SavedFormConfig } from './utils/formHistory';
 
 // --- VISUAL COMPONENTS ---
@@ -297,9 +298,7 @@ function App() {
     }, [showTokenRequest, user]);
 
     // Access Control
-    const [isSiteUnlocked, setIsSiteUnlocked] = useState(() => {
-        return localStorage.getItem('NAAGRAAZ_ACCESS_KEY') === 'root-access';
-    });
+    const [isSiteUnlocked, setIsSiteUnlocked] = useState(false); // Force lock screen on load
     const [siteLocked, setSiteLocked] = useState(true); // Default locked, Firestore overrides
     const [siteConfigLoading, setSiteConfigLoading] = useState(true);
     const [accessKeyInput, setAccessKeyInput] = useState('');
@@ -351,10 +350,6 @@ function App() {
     const launchStepTimerRef = useRef<number | null>(null);
     const launchRunTimerRef = useRef<number | null>(null);
     const launchPayloadRef = useRef<Record<string, string> | null>(null);
-
-    // NEW: AI Data Context State
-    const [aiPromptData, setAiPromptData] = useState('');
-    const [parsingError, setParsingError] = useState<string | null>(null);
 
     const [copied, setCopied] = useState(false);
     const [currentToken, setCurrentToken] = useState<TokenMetadata | null>(null);
@@ -615,16 +610,18 @@ function App() {
         }
     }, [speedMode, targetCount, analysis?.questions.length]);
 
-    const handleTokenRequest = async () => {
+    const handleTokenRequest = async (requestedAmount?: number) => {
         if (!user || tokenRequestStatus === 'pending_exists') return;
-        if (tokenRequestAmount < 1 || tokenRequestAmount > 200) {
-            setTokenRequestMessage("Amount must be between 1 and 200.");
+        const finalAmount = requestedAmount !== undefined ? requestedAmount : tokenRequestAmount;
+
+        if (finalAmount < 1 || finalAmount > 500) {
+            setTokenRequestMessage("Amount must be between 1 and 500.");
             setTokenRequestStatus('error');
             return;
         }
 
         setTokenRequestStatus('submitting');
-        const result = await submitTokenRequest(user, tokenRequestAmount);
+        const result = await submitTokenRequest(user, finalAmount);
 
         if (result.success) {
             setTokenRequestStatus('success');
@@ -1230,48 +1227,22 @@ function App() {
             return;
         }
 
-        // 1. VALIDATION: Parse AI Data BEFORE anything else
-        let aiParsedResponses: Record<string, string[]> = {};
-
-        // Filter used text fields (excluding names)
+        // VALIDATION: Ensure required text fields have content (excluding names which are handled by generator)
         const requiredTextFields = analysis?.questions.filter(q =>
             (q.type === 'SHORT_ANSWER' || q.type === 'PARAGRAPH') &&
             !q.title.toLowerCase().includes('name') &&
             q.required
         );
 
-        // BLOCKER: Verify AI Data is present if required
-        if (requiredTextFields && requiredTextFields.length > 0 && !aiPromptData.trim()) {
-            setError("⚠️ Missing Required Data: Please complete Stage 1 (AI Injection) before launching.");
-            setParsingError("REQUIRED: You must inject data for mandatory text fields.");
-            return;
-        }
-
-        // Parse if data exists
-        if (analysis && aiPromptData.trim()) {
-            try {
-                aiParsedResponses = parseAIResponse(aiPromptData, analysis.questions);
-                setParsingError(null);
-            } catch (e: any) {
-                setParsingError(`⚠️ ${e.message}`);
-                // If it was required, we must stop
-                if (requiredTextFields && requiredTextFields.length > 0) {
-                    setError("⚠️ Critical JSON Error: Fix AI data before proceeding.");
-                    return;
-                }
+        if (requiredTextFields && requiredTextFields.length > 0) {
+            const missing = requiredTextFields.filter(q => !customResponses[q.id]?.trim());
+            if (missing.length > 0) {
+                setError(`⚠️ Missing Required Data: Please provide samples for "${missing[0].title}".`);
+                return;
             }
         }
 
-        // 2. MERGE: AI Data into Custom Responses (AI overrides existing if keys match, or we can merge)
-        // For now, let's treat AI data as the source of truth for populated fields
         const mergedResponses = { ...customResponses };
-        Object.entries(aiParsedResponses).forEach(([qId, values]) => {
-            mergedResponses[qId] = values.join(', ');
-        });
-
-        // We update the state so handleCopy picks it up
-        setCustomResponses(mergedResponses);
-
         setAutomationLogs([]);
 
         // Save form config to history before launching
@@ -1286,16 +1257,11 @@ function App() {
             });
         }
 
-        // --- ATMOSPHERIC VERIFICATION SEQUENCE (4500ms) ---
+        // --- ATMOSPHERIC VERIFICATION SEQUENCE ---
         launchPayloadRef.current = mergedResponses;
         clearLaunchSequence();
         setLaunchProgress(0);
         setIsLaunching(true);
-
-        // Sequence: 
-        // 0-4000ms: Progress Animation
-        // 4000ms: Page Swap
-        // 4500ms: Transition End / Start Run
 
         launchStepTimerRef.current = window.setTimeout(() => {
             setStep(3);
@@ -1304,46 +1270,6 @@ function App() {
         launchRunTimerRef.current = window.setTimeout(() => {
             void continueLaunchNow();
         }, LAUNCH_OVERLAY_MS);
-    };
-
-    const handleAIInject = () => {
-        if (!analysis || !aiPromptData.trim()) {
-            setParsingError("⚠️ Please paste JSON data first.");
-            return;
-        }
-
-        try {
-            const parsed = parseAIResponse(aiPromptData, analysis.questions);
-            const newResponses = { ...customResponses };
-            let namesFound = false;
-            let namesList: string[] = [];
-
-            Object.entries(parsed).forEach(([qId, values]) => {
-                const question = analysis.questions.find(q => q.id === qId);
-
-                // Populate Custom Responses Map
-                newResponses[qId] = values.join(', ');
-
-                // If it's a name field, also prepare for Custom Names source
-                if (question && question.title.toLowerCase().includes('name')) {
-                    namesFound = true;
-                    namesList = [...namesList, ...values];
-                }
-            });
-
-            // Update specialized Name Source if applicable
-            if (namesFound) {
-                setNameSource('custom');
-                // Merge or replace? User likely wants to replace with AI data
-                setCustomNamesRaw(namesList.join(', '));
-            }
-
-            setCustomResponses(newResponses);
-            setParsingError(null);
-            alert("✅ AI Data injected successfully! Correct names and field data have been applied.");
-        } catch (e: any) {
-            setParsingError(`⚠️ ${e.message}`);
-        }
     };
 
     const reset = () => {
@@ -1371,7 +1297,6 @@ function App() {
     if (siteLocked && !isSiteUnlocked) {
         const handleUnlock = () => {
             if (accessKeyInput === 'root-access') {
-                localStorage.setItem('NAAGRAAZ_ACCESS_KEY', 'root-access');
                 setIsSiteUnlocked(true);
                 setAccessError(false);
             } else {
@@ -1410,9 +1335,9 @@ function App() {
 
                     {/* Heading */}
                     <div className="text-center mb-8 space-y-2">
-                        <h1 className="text-2xl font-semibold text-white tracking-tight">Access Denied</h1>
+                        <h1 className="text-2xl font-semibold text-white tracking-tight">System Maintenance</h1>
                         <p className="text-sm text-slate-400 font-sans">
-                            Public access has been permanently disabled for ethical reasons.
+                            The site is currently under maintenance. Please enter the access key to proceed.
                         </p>
                     </div>
 
@@ -1467,94 +1392,17 @@ function App() {
         <div className="min-h-screen flex flex-col pt-16 relative overflow-hidden">
             {showLogin && <LoginModal onClose={() => setShowLogin(false)} onLogin={handleLogin} />}
             {showTokenRequest && user && (
-                <div className="fixed inset-0 z-[150] flex flex-col items-center justify-center p-6 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
-                    <div className="max-w-md w-full bg-slate-900 border border-slate-700/50 p-6 rounded-2xl shadow-xl">
-                        <h3 className="text-xl font-bold text-white mb-2">Request Tokens</h3>
-                        <p className="text-sm text-slate-400 mb-6">
-                            You have run out of tokens. You can request up to 200 tokens from the administrator. Only one active request is allowed at a time.
-                        </p>
-
-                        <div className="space-y-4">
-                            {tokenRequestStatus === 'checking' ? (
-                                <div className="py-8 flex flex-col items-center justify-center">
-                                    <Activity className="w-8 h-8 text-emerald-500 animate-spin mb-4" />
-                                    <p className="text-sm text-slate-400 font-mono">Checking system records...</p>
-                                </div>
-                            ) : tokenRequestStatus === 'pending_exists' ? (
-                                <div className="py-6 flex flex-col items-center text-center bg-amber-500/10 border border-amber-500/20 rounded-xl p-4">
-                                    <Clock className="w-10 h-10 text-amber-500 mb-3" />
-                                    <h4 className="text-amber-400 font-bold mb-1 tracking-wide">REQUEST PENDING</h4>
-                                    <p className="text-sm text-amber-500/80 leading-relaxed font-medium">
-                                        {tokenRequestMessage}
-                                    </p>
-                                </div>
-                            ) : (
-                                <>
-                                    <div>
-                                        <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-                                            Number of Tokens
-                                        </label>
-                                        <input
-                                            type="number"
-                                            min="1"
-                                            max="200"
-                                            value={tokenRequestAmount}
-                                            onChange={(e) => setTokenRequestAmount(Number(e.target.value))}
-                                            className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-emerald-500 focus:outline-none font-mono"
-                                            disabled={tokenRequestStatus === 'submitting' || tokenRequestStatus === 'success'}
-                                        />
-                                    </div>
-
-                                    {tokenRequestStatus === 'error' && (
-                                        <div className="bg-red-500/10 border border-red-500/20 p-3 rounded-lg flex items-center gap-2 text-red-400">
-                                            <AlertCircle className="w-4 h-4 shrink-0" />
-                                            <p className="text-sm font-medium">{tokenRequestMessage}</p>
-                                        </div>
-                                    )}
-                                    {tokenRequestStatus === 'success' && (
-                                        <div className="bg-emerald-500/10 border border-emerald-500/20 p-3 rounded-lg flex items-center gap-2 text-emerald-400">
-                                            <CheckCircle className="w-4 h-4 shrink-0" />
-                                            <p className="text-sm font-medium">{tokenRequestMessage}</p>
-                                        </div>
-                                    )}
-                                </>
-                            )}
-
-                            <div className="pt-4 flex gap-3">
-                                <button
-                                    onClick={() => {
-                                        setShowTokenRequest(false);
-                                        setTokenRequestStatus('idle');
-                                        setTokenRequestMessage('');
-                                    }}
-                                    className="flex-1 px-4 py-3 rounded-lg bg-slate-800 text-slate-300 font-semibold hover:bg-slate-700 transition-colors"
-                                    disabled={tokenRequestStatus === 'submitting'}
-                                >
-                                    Close
-                                </button>
-                                {tokenRequestStatus !== 'pending_exists' && tokenRequestStatus !== 'checking' && (
-                                    <button
-                                        onClick={handleTokenRequest}
-                                        className="flex-1 px-4 py-3 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-500 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                                        disabled={tokenRequestStatus === 'submitting' || tokenRequestStatus === 'success'}
-                                    >
-                                        {tokenRequestStatus === 'submitting' ? (
-                                            <>
-                                                <Activity className="w-4 h-4 animate-spin" />
-                                                <span>Submitting...</span>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Command className="w-4 h-4" />
-                                                <span>Send Request</span>
-                                            </>
-                                        )}
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <TokenModal
+                    onClose={() => {
+                        setShowTokenRequest(false);
+                        setTokenRequestStatus('idle');
+                        setTokenRequestMessage('');
+                    }}
+                    onSubmit={handleTokenRequest}
+                    status={tokenRequestStatus}
+                    message={tokenRequestMessage}
+                    currentTokens={user.tokens || 0}
+                />
             )}
             <VideoModal isOpen={showVideoModal} onClose={() => setShowVideoModal(false)} />
             {showRecommendationModal && (
@@ -1824,12 +1672,7 @@ function App() {
                                         setCustomNamesRaw={setCustomNamesRaw}
                                         customResponses={customResponses}
                                         setCustomResponses={setCustomResponses}
-                                        aiPromptData={aiPromptData}
-                                        setAiPromptData={setAiPromptData}
-                                        parsingError={parsingError}
-                                        setParsingError={setParsingError}
                                         handleCompile={handleCompile}
-                                        handleAIInject={handleAIInject}
                                         reset={reset}
                                         setShowPricing={setShowTokenRequest}
                                         setShowRecommendationModal={setShowRecommendationModal}

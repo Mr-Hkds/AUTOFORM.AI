@@ -65,7 +65,7 @@ export interface TokenRequest {
   userId: string;
   userEmail: string;
   userName: string;
-  requestedAmount: number; // max 200
+  requestedAmount: number; // max 500
   status: 'pending' | 'approved' | 'rejected';
   createdAt: any;
   processedAt?: any;

@@ -1,9 +1,9 @@
 import React, { useMemo, useCallback, useState } from 'react';
-import { Settings, CheckCircle, ArrowRight, ArrowLeft, Crown, AlertCircle, Target, ShieldCheck, Zap, Sparkles, Command, ExternalLink, Activity, RotateCcw, LayoutGrid, MessageSquare, Bot } from 'lucide-react';
+import { Settings, CheckCircle, ArrowLeft, Crown, AlertCircle, Target, ShieldCheck, Zap, Sparkles, Command, RotateCcw, Bot, ChevronDown } from 'lucide-react';
 import { FormAnalysis, FormQuestion, QuestionType, User } from '../types';
 import QuestionCard from './QuestionCard';
-import TagInput from './TagInput';
 import { generateAIPrompt } from '../utils/parsingUtils';
+import AIWeightageBridge from './AIWeightageBridge';
 
 // --- LOCAL BADGE ---
 const Badge = ({ children, color = "obsidian" }: { children?: React.ReactNode, color?: "obsidian" | "gold" | "premium" }) => {
@@ -35,12 +35,7 @@ interface Step2DashboardProps {
     setCustomNamesRaw: (val: string) => void;
     customResponses: Record<string, string>;
     setCustomResponses: React.Dispatch<React.SetStateAction<Record<string, string>>>;
-    aiPromptData: string;
-    setAiPromptData: (val: string) => void;
-    parsingError: string | null;
-    setParsingError: (val: string | null) => void;
     handleCompile: () => void;
-    handleAIInject: () => void;
     reset: () => void;
     setShowPricing: (show: boolean) => void;
     setShowRecommendationModal: (show: boolean) => void;
@@ -48,8 +43,6 @@ interface Step2DashboardProps {
     isLaunching: boolean;
     error: string | null;
 }
-
-type TabKey = 'settings' | 'questions' | 'ai';
 
 const Step2Dashboard = React.memo((props: Step2DashboardProps) => {
     const {
@@ -68,12 +61,7 @@ const Step2Dashboard = React.memo((props: Step2DashboardProps) => {
         setCustomNamesRaw,
         customResponses,
         setCustomResponses,
-        aiPromptData,
-        setAiPromptData,
-        parsingError,
-        setParsingError,
         handleCompile,
-        handleAIInject,
         reset,
         setShowPricing,
         setShowRecommendationModal,
@@ -82,10 +70,48 @@ const Step2Dashboard = React.memo((props: Step2DashboardProps) => {
         error
     } = props;
 
-    const [activeTab, setActiveTab] = useState<TabKey>('questions');
     const [questionSearch, setQuestionSearch] = useState('');
-    const [showBanner, setShowBanner] = useState(true);
     const [customCountActive, setCustomCountActive] = useState(false);
+    const [showWeightageAI, setShowWeightageAI] = useState(false);
+    const [showManualTuning, setShowManualTuning] = useState(false);
+    const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
+
+    // AI Auto-Weight Handler (Now Unified)
+    const handleApplyAIWeightages = useCallback((combinedData: any[]) => {
+        setAnalysis(prev => {
+            if (!prev) return prev;
+            const newQuestions = [...prev.questions];
+
+            combinedData.forEach(aiItem => {
+                const qIndex = newQuestions.findIndex(q => q.id === aiItem.id);
+                if (qIndex === -1) return;
+
+                // Handle Weights
+                if (aiItem.options && Array.isArray(aiItem.options)) {
+                    const optMap = new Map(aiItem.options.map((o: any) => [o.value, o.weight]));
+                    newQuestions[qIndex] = {
+                        ...newQuestions[qIndex],
+                        options: newQuestions[qIndex].options.map(opt => ({
+                            ...opt,
+                            weight: optMap.has(opt.value) ? Number(optMap.get(opt.value)) : opt.weight
+                        }))
+                    };
+                }
+
+                // Handle Text Samples (Inject into customResponses state)
+                if (aiItem.samples && Array.isArray(aiItem.samples)) {
+                    setCustomResponses(prevSamples => ({
+                        ...prevSamples,
+                        [aiItem.id]: aiItem.samples.join(', ')
+                    }));
+                }
+            });
+
+            return { ...prev, questions: newQuestions };
+        });
+
+        setShowWeightageAI(false);
+    }, [setAnalysis, setCustomResponses]);
 
     // Update Single Question Handler
     const handleQuestionUpdate = useCallback((updatedQuestion: FormQuestion) => {
@@ -118,22 +144,6 @@ const Step2Dashboard = React.memo((props: Step2DashboardProps) => {
     const hasAITab = relevantTextFields.length > 0;
     const hasRequiredAI = relevantTextFields.some(q => q.required);
 
-    const tabs: { key: TabKey; label: string; icon: React.ReactNode; badge?: string }[] = useMemo(() => {
-        const t: { key: TabKey; label: string; icon: React.ReactNode; badge?: string }[] = [
-            { key: 'questions', label: 'Questions', icon: <LayoutGrid className="w-4 h-4" />, badge: `${analysis.questions.length}` },
-            { key: 'settings', label: 'Settings', icon: <Settings className="w-4 h-4" /> },
-        ];
-        if (hasAITab) {
-            t.push({
-                key: 'ai',
-                label: 'AI Assistant',
-                icon: <Bot className="w-4 h-4" />,
-                badge: hasRequiredAI ? 'Required' : undefined
-            });
-        }
-        return t;
-    }, [analysis.questions.length, hasAITab, hasRequiredAI]);
-
     const presets = [5, 10, 25, 50, 75, 100];
     const isPreset = presets.includes(targetCount);
 
@@ -154,53 +164,30 @@ const Step2Dashboard = React.memo((props: Step2DashboardProps) => {
             </div>
 
             {/* HEADER: Title + Badges */}
-            <div className="mb-6">
-                <h2 className="text-2xl md:text-3xl font-serif font-bold text-white mb-2 tracking-tight">{analysis.title}</h2>
-                {analysis.description && (
-                    <p className="text-xs text-slate-500 mb-3 max-w-2xl leading-relaxed line-clamp-2">{analysis.description}</p>
-                )}
-                <div className="flex flex-wrap gap-3 items-center">
-                    <Badge color="obsidian">{analysis.questions.length} Fields</Badge>
-                    <Badge color="gold">Algorithm Optimized</Badge>
-                    {user && (user.tokens || 0) < targetCount && (
-                        <button
-                            onClick={() => setShowPricing(true)}
-                            className="text-[10px] text-amber-500 hover:text-amber-400 font-bold uppercase tracking-widest flex items-center gap-1.5 animate-pulse"
-                        >
-                            <Crown className="w-3 h-3" />
-                            Low on tokens? Refill
-                        </button>
-                    )}
-                </div>
-            </div>
-
-            {/* SMART DEFAULTS BANNER */}
-            {showBanner && (
-                <div className="mb-6 relative overflow-hidden rounded-xl border border-emerald-500/20 bg-gradient-to-r from-emerald-500/[0.08] to-teal-500/[0.04] p-4 animate-fade-in-up">
-                    <div className="flex items-center justify-between gap-4">
-                        <div className="flex items-center gap-3">
-                            <div className="bg-emerald-500/20 p-2.5 rounded-lg flex-shrink-0">
-                                <Sparkles className="w-5 h-5 text-emerald-400" />
-                            </div>
-                            <div>
-                                <p className="text-sm font-semibold text-white">How it works</p>
-                                <p className="text-xs text-slate-400 mt-0.5">
-                                    <span className="text-amber-400 font-semibold">Step 1:</span> Review your questions & adjust weightages below →
-                                    <span className="text-amber-400 font-semibold">Step 2:</span> Configure speed & count →
-                                    <span className="text-emerald-400 font-semibold">Launch!</span>
-                                </p>
-                            </div>
-                        </div>
-                        <button
-                            onClick={() => setShowBanner(false)}
-                            className="text-slate-500 hover:text-white transition-colors text-lg px-2 flex-shrink-0"
-                            aria-label="Dismiss banner"
-                        >
-                            ×
-                        </button>
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
+                <div className="min-w-0">
+                    <h2 className="text-2xl md:text-3xl font-serif font-bold text-white mb-2 tracking-tight truncate">{analysis.title}</h2>
+                    <div className="flex flex-wrap gap-2 items-center">
+                        <Badge color="obsidian">{analysis.questions.length} Fields</Badge>
+                        <Badge color="gold">AI Optimized</Badge>
+                        {user && (user.tokens || 0) < targetCount && (
+                            <button
+                                onClick={() => setShowPricing(true)}
+                                className="text-[10px] text-amber-500 hover:text-amber-400 font-bold uppercase tracking-widest flex items-center gap-1.5"
+                            >
+                                <Crown className="w-3 h-3" />
+                                Refill tokens
+                            </button>
+                        )}
                     </div>
                 </div>
-            )}
+
+                {analysis.description && (
+                    <p className="text-[10px] text-slate-500 max-w-xs leading-relaxed italic border-l border-white/10 pl-3 hidden lg:block">
+                        {analysis.description}
+                    </p>
+                )}
+            </div>
 
             {/* ERROR DISPLAY */}
             {error && (
@@ -210,133 +197,230 @@ const Step2Dashboard = React.memo((props: Step2DashboardProps) => {
                 </div>
             )}
 
-            {/* STEP INDICATOR TAB BAR */}
-            <div className="flex gap-1 p-1 bg-white/[0.03] rounded-xl border border-white/5 mb-6">
-                {tabs.map((tab, idx) => (
+            {/* ─────────────────────────────────────── */}
+            {/* SECTION 1: RESPONSE COUNT (Inline)      */}
+            {/* ─────────────────────────────────────── */}
+            <div className="glass-panel p-5 rounded-xl mb-6">
+                <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2 text-sm font-bold text-white uppercase tracking-wider">
+                        <Target className="w-4 h-4 text-emerald-500" />
+                        Responses
+                    </div>
                     <button
-                        key={tab.key}
-                        onClick={() => setActiveTab(tab.key)}
-                        className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-200 active:scale-[0.97] ${activeTab === tab.key
-                            ? 'bg-white/10 text-white shadow-lg border border-white/10'
-                            : 'text-slate-500 hover:text-slate-300 hover:bg-white/[0.03] border border-transparent'
+                        onClick={() => setShowRecommendationModal(true)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-500 hover:bg-amber-500/20 transition-all active:scale-95"
+                    >
+                        <ShieldCheck className="w-3 h-3" />
+                        <span className="text-[9px] font-bold uppercase tracking-wider">Guide</span>
+                    </button>
+                </div>
+
+                {/* PRESET PILLS */}
+                <div className="flex flex-wrap gap-2">
+                    {presets.map(preset => (
+                        <button
+                            key={preset}
+                            onClick={() => {
+                                checkBalanceAndRedirect(preset);
+                                setTargetCount(preset);
+                                setCustomCountActive(false);
+                            }}
+                            className={`px-4 py-2.5 rounded-xl text-sm font-mono font-bold transition-all duration-200 active:scale-95 border ${targetCount === preset && !customCountActive
+                                ? 'bg-amber-500 text-black border-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.25)]'
+                                : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white border-white/5 hover:border-white/10'
+                                }`}
+                        >
+                            {preset}
+                        </button>
+                    ))}
+
+                    {/* CUSTOM PILL */}
+                    <button
+                        onClick={() => setCustomCountActive(true)}
+                        className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-mono font-bold transition-all duration-200 active:scale-95 border ${customCountActive || (!isPreset && !isNaN(targetCount))
+                            ? 'bg-amber-500 text-black border-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.25)]'
+                            : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white border-white/5 hover:border-white/10'
                             }`}
                     >
-                        <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold flex-shrink-0 ${activeTab === tab.key
-                            ? 'bg-amber-500 text-black'
-                            : 'bg-white/10 text-slate-500'
-                            }`}>{idx + 1}</span>
-                        {tab.icon}
-                        <span className="hidden sm:inline">{tab.label}</span>
-                        {tab.badge && (
-                            <span className={`text-[9px] px-1.5 py-0.5 rounded-md font-mono ${tab.badge === 'Required'
-                                ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-                                : 'bg-white/5 text-slate-500'
-                                }`}>
-                                {tab.badge}
-                            </span>
-                        )}
+                        Custom:
+                        <input
+                            type="number"
+                            min={1}
+                            max={100}
+                            value={customCountActive || !isPreset ? (isNaN(targetCount) ? '' : targetCount) : ''}
+                            placeholder="—"
+                            onClick={(e) => { e.stopPropagation(); setCustomCountActive(true); }}
+                            onChange={(e) => {
+                                setCustomCountActive(true);
+                                if (e.target.value === '') {
+                                    setTargetCount(NaN);
+                                    return;
+                                }
+                                const val = Math.min(Number(e.target.value), 100);
+                                checkBalanceAndRedirect(val);
+                                setTargetCount(val);
+                            }}
+                            className="w-10 bg-transparent text-center outline-none font-mono font-bold placeholder:text-current/40 [-moz-appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        />
                     </button>
-                ))}
+                </div>
+
+                {/* TOKEN WARNING */}
+                {user && targetCount > (user.tokens || 0) && (
+                    <div className="mt-4 bg-red-900/40 text-red-200 text-xs px-4 py-3 rounded-xl border border-red-500/30 animate-fade-in flex items-center justify-between">
+                        <span className="flex items-center gap-2">
+                            <AlertCircle className="w-4 h-4" />
+                            Insufficient Tokens (Current: {user.tokens})
+                        </span>
+                        <button
+                            onClick={() => setShowPricing(true)}
+                            className="bg-red-500 text-white px-3 py-1 rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-red-400 transition-colors"
+                        >
+                            Upgrade
+                        </button>
+                    </div>
+                )}
             </div>
 
             {/* ─────────────────────────────────────── */}
-            {/* TAB: SETTINGS                           */}
+            {/* SECTION 2: AI SETUP CARD                */}
             {/* ─────────────────────────────────────── */}
-            {activeTab === 'settings' && (
-                <div className="space-y-8 animate-fade-in-up">
+            {!showWeightageAI ? (
+                <div className="relative group overflow-hidden rounded-2xl border border-indigo-500/20 bg-[#050505] p-6 shadow-2xl transition-all hover:border-indigo-500/40 mb-6">
+                    {/* Shine effect */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/[0.03] to-purple-500/[0.03] pointer-events-none" />
+                    <div className="absolute -inset-x-20 -inset-y-20 bg-gradient-to-tr from-transparent via-white/[0.02] to-transparent rotate-45 pointer-events-none group-hover:translate-x-[200%] duration-1000 transition-transform" />
 
-                    {/* BREADCRUMB HINT */}
-                    <button
-                        onClick={() => setActiveTab('questions')}
-                        className="group flex items-center gap-2 text-[10px] text-slate-600 hover:text-slate-300 font-medium transition-all"
-                    >
-                        <ArrowLeft className="w-3 h-3 group-hover:-translate-x-0.5 transition-transform" />
-                        <span>← Back to Questions</span>
-                        <CheckCircle className="w-3 h-3 text-emerald-500" />
-                    </button>
-
-                    {/* RESPONSE COUNT */}
-                    <div className="glass-panel p-6 rounded-xl">
-                        <div className="flex items-center justify-between mb-5">
-                            <div className="flex items-center gap-2 text-sm font-bold text-white uppercase tracking-wider">
-                                <Target className="w-4 h-4 text-emerald-500" />
-                                Number of Responses
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-6 relative z-10 w-full">
+                        <div className="flex items-center gap-5 text-center sm:text-left flex-1 min-w-0">
+                            <div className="w-14 h-14 bg-indigo-500/10 rounded-2xl shadow-[0_0_20px_rgba(99,102,241,0.1)] border border-indigo-500/20 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                                <Sparkles className="w-7 h-7 text-indigo-400" />
                             </div>
+                            <div className="space-y-1.5 flex-1 min-w-0">
+                                <h4 className="text-xl font-bold text-white tracking-tight leading-none">Intelligent Setup Wizard</h4>
+                                <p className="text-sm text-slate-400 leading-snug pr-4">
+                                    Generate distributions and text response samples with AI.
+                                </p>
+                            </div>
+                        </div>
+                        <div className="flex-shrink-0 w-full sm:w-auto">
                             <button
-                                onClick={() => setShowRecommendationModal(true)}
-                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-500 hover:bg-amber-500/20 transition-all active:scale-95"
+                                onClick={() => {
+                                    setShowWeightageAI(true);
+                                    setShowManualTuning(false);
+                                }}
+                                className="w-full sm:w-auto px-8 py-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs uppercase tracking-widest transition-all duration-300 active:scale-[0.98] shadow-[0_0_20px_rgba(79,70,229,0.3)] hover:shadow-[0_0_30px_rgba(79,70,229,0.5)] border border-indigo-400/30 flex items-center justify-center gap-3 relative overflow-hidden"
                             >
-                                <ShieldCheck className="w-3 h-3" />
-                                <span className="text-[9px] font-bold uppercase tracking-wider">Academic Guide</span>
+                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] hover:translate-x-[100%] duration-700 transition-transform pointer-events-none" />
+                                <Bot className="w-4 h-4 shrink-0" />
+                                Start AI Wizard
                             </button>
                         </div>
-
-                        {/* PRESET PILLS */}
-                        <div className="flex flex-wrap gap-2">
-                            {presets.map(preset => (
-                                <button
-                                    key={preset}
-                                    onClick={() => {
-                                        checkBalanceAndRedirect(preset);
-                                        setTargetCount(preset);
-                                        setCustomCountActive(false);
-                                    }}
-                                    className={`px-5 py-3 rounded-xl text-sm font-mono font-bold transition-all duration-200 active:scale-95 border ${targetCount === preset && !customCountActive
-                                        ? 'bg-amber-500 text-black border-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.25)]'
-                                        : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white border-white/5 hover:border-white/10'
-                                        }`}
-                                >
-                                    {preset}
-                                </button>
-                            ))}
-
-                            {/* CUSTOM PILL */}
-                            <button
-                                onClick={() => setCustomCountActive(true)}
-                                className={`flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-mono font-bold transition-all duration-200 active:scale-95 border ${customCountActive || (!isPreset && !isNaN(targetCount))
-                                    ? 'bg-amber-500 text-black border-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.25)]'
-                                    : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white border-white/5 hover:border-white/10'
-                                    }`}
-                            >
-                                Custom:
-                                <input
-                                    type="number"
-                                    min={1}
-                                    max={100}
-                                    value={customCountActive || !isPreset ? (isNaN(targetCount) ? '' : targetCount) : ''}
-                                    placeholder="—"
-                                    onClick={(e) => { e.stopPropagation(); setCustomCountActive(true); }}
-                                    onChange={(e) => {
-                                        setCustomCountActive(true);
-                                        if (e.target.value === '') {
-                                            setTargetCount(NaN);
-                                            return;
-                                        }
-                                        const val = Math.min(Number(e.target.value), 100);
-                                        checkBalanceAndRedirect(val);
-                                        setTargetCount(val);
-                                    }}
-                                    className="w-10 bg-transparent text-center outline-none font-mono font-bold placeholder:text-current/40 [-moz-appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                                />
-                            </button>
-                        </div>
-
-                        {/* TOKEN WARNING */}
-                        {user && targetCount > (user.tokens || 0) && (
-                            <div className="mt-4 bg-red-900/40 text-red-200 text-xs px-4 py-3 rounded-xl border border-red-500/30 animate-fade-in flex items-center justify-between">
-                                <span className="flex items-center gap-2">
-                                    <AlertCircle className="w-4 h-4" />
-                                    Insufficient Tokens (Current: {user.tokens})
-                                </span>
-                                <button
-                                    onClick={() => setShowPricing(true)}
-                                    className="bg-red-500 text-white px-3 py-1 rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-red-400 transition-colors"
-                                >
-                                    Upgrade
-                                </button>
-                            </div>
-                        )}
                     </div>
+                </div>
+            ) : (
+                <div className="mb-6">
+                    <AIWeightageBridge
+                        questions={analysis.questions}
+                        onApplyWeightages={handleApplyAIWeightages}
+                        onClose={() => setShowWeightageAI(false)}
+                    />
+                </div>
+            )}
+
+            {/* ─────────────────────────────────────── */}
+            {/* SECTION 3: ADVANCED MANUAL TUNING        */}
+            {/* ─────────────────────────────────────── */}
+            <div className="border-t border-white/5 pt-2 mb-6">
+                <button
+                    onClick={() => setShowManualTuning(!showManualTuning)}
+                    className="w-full flex items-center justify-between p-4 rounded-xl hover:bg-white/[0.02] border border-transparent hover:border-white/5 transition-colors group"
+                >
+                    <div className="flex items-center gap-3">
+                        <div className="p-1.5 rounded-lg bg-slate-800 text-slate-400 group-hover:text-slate-300 transition-colors">
+                            <Settings className="w-4 h-4" />
+                        </div>
+                        <div className="text-left">
+                            <h5 className="text-sm font-semibold text-slate-300 group-hover:text-white transition-colors tracking-wide">
+                                Advanced Manual Tuning
+                            </h5>
+                            <p className="text-[10px] text-slate-500 mt-0.5">
+                                Manually adjust sliders and add custom response variants.
+                            </p>
+                        </div>
+                    </div>
+                    <ChevronDown className={`w-5 h-5 text-slate-500 transition-transform duration-300 ${showManualTuning ? 'rotate-180' : ''}`} />
+                </button>
+            </div>
+
+            {/* ADVANCED MANUAL TUNING CONTENT */}
+            {showManualTuning && (
+                <div className="animate-in fade-in slide-in-from-top-4 duration-500 space-y-6 pb-6">
+                    {/* Search Field */}
+                    <div className="relative">
+                        <Command className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                        <input
+                            type="text"
+                            placeholder="Search questions..."
+                            value={questionSearch}
+                            onChange={(e) => setQuestionSearch(e.target.value)}
+                            className="w-full bg-white/[0.02] border border-white/10 rounded-xl pl-12 pr-4 py-4 text-sm text-white placeholder:text-slate-600 focus:border-indigo-500/50 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all font-medium"
+                        />
+                    </div>
+
+                    {/* Question Cards  */}
+                    <div className="space-y-4">
+                        {filteredQuestions.map((q, idx) => (
+                            <QuestionCard
+                                key={q.id}
+                                index={idx}
+                                question={q}
+                                onUpdate={handleQuestionUpdate}
+                                customResponse={customResponses[q.id]}
+                                onCustomResponseChange={(val) => handleCustomResponseChange(q.id, val)}
+                                nameSource={nameSource}
+                                setNameSource={setNameSource}
+                                customNamesRaw={customNamesRaw}
+                                setCustomNamesRaw={setCustomNamesRaw}
+                            />
+                        ))}
+                    </div>
+
+                    {filteredQuestions.length === 0 && questionSearch && (
+                        <div className="text-center py-16 text-slate-500">
+                            <p className="text-sm">No fields matching "{questionSearch}"</p>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* ─────────────────────────────────────── */}
+            {/* SECTION 4: ADVANCED SETTINGS (Speed)    */}
+            {/* ─────────────────────────────────────── */}
+            <div className="border-t border-white/5 pt-2 mb-6">
+                <button
+                    onClick={() => setShowAdvancedSettings(!showAdvancedSettings)}
+                    className="w-full flex items-center justify-between p-4 rounded-xl hover:bg-white/[0.02] border border-transparent hover:border-white/5 transition-colors group"
+                >
+                    <div className="flex items-center gap-3">
+                        <div className="p-1.5 rounded-lg bg-slate-800 text-slate-400 group-hover:text-slate-300 transition-colors">
+                            <Zap className="w-4 h-4" />
+                        </div>
+                        <div className="text-left">
+                            <h5 className="text-sm font-semibold text-slate-300 group-hover:text-white transition-colors tracking-wide">
+                                Speed Settings
+                            </h5>
+                            <p className="text-[10px] text-slate-500 mt-0.5">
+                                Interaction speed and safety settings.
+                            </p>
+                        </div>
+                    </div>
+                    <ChevronDown className={`w-5 h-5 text-slate-500 transition-transform duration-300 ${showAdvancedSettings ? 'rotate-180' : ''}`} />
+                </button>
+            </div>
+
+            {showAdvancedSettings && (
+                <div className="animate-in fade-in slide-in-from-top-4 duration-500 space-y-6 pb-6">
 
                     {/* INTERACTION SPEED */}
                     <div className="glass-panel p-6 rounded-xl">
@@ -403,231 +487,20 @@ const Step2Dashboard = React.memo((props: Step2DashboardProps) => {
                             </div>
                         )}
                     </div>
-
-                    {/* NAME SOURCE (only show if form has name fields) */}
-                    {analysis.questions.some(q => q.title.toLowerCase().includes('name')) && (
-                        <div className="glass-panel p-6 rounded-xl">
-                            <div className="flex items-center justify-between mb-5">
-                                <div className="flex items-center gap-2 text-sm font-bold text-white uppercase tracking-wider">
-                                    <Command className="w-4 h-4 text-amber-500" />
-                                    Name Generator
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-3 gap-3">
-                                {[
-                                    { id: 'auto', label: 'AI Auto', desc: 'Contextual selection' },
-                                    { id: 'indian', label: 'Indian DB', desc: 'Regional names' },
-                                    { id: 'custom', label: 'Manual List', desc: 'User specified' }
-                                ].map((opt) => (
-                                    <button
-                                        key={opt.id}
-                                        onClick={() => setNameSource(opt.id as any)}
-                                        className={`relative overflow-hidden flex flex-col items-center py-4 rounded-xl border transition-all duration-200 active:scale-95 ${nameSource === opt.id
-                                            ? 'bg-amber-500/15 border-amber-500 text-white shadow-[0_0_20px_rgba(245,158,11,0.1)]'
-                                            : 'bg-white/[0.03] border-white/5 text-slate-500 hover:bg-white/[0.06] hover:border-white/10 hover:text-slate-300'
-                                            }`}
-                                    >
-                                        {nameSource === opt.id && <div className="absolute inset-x-0 bottom-0 h-0.5 bg-amber-500" />}
-                                        <span className="text-[10px] font-bold tracking-widest uppercase mb-1">{opt.label}</span>
-                                        <span className="text-[8px] opacity-60">{opt.desc}</span>
-                                    </button>
-                                ))}
-                            </div>
-
-                            {nameSource === 'custom' && (
-                                <div className="mt-4">
-                                    <TagInput
-                                        value={customNamesRaw}
-                                        onChange={(val) => setCustomNamesRaw(val)}
-                                        placeholder="Enter names and press Enter or Comma..."
-                                    />
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    {/* SECURITY NOTE */}
-                    <div className="p-3 rounded-lg bg-red-500/5 border border-red-500/10 text-[10px] text-red-200/60 leading-relaxed font-mono flex items-start gap-2">
-                        <ShieldCheck className="w-3 h-3 text-red-400 mt-0.5 flex-shrink-0" />
-                        <span>To maintain account integrity, avoid exceeding 100 responses per hour per IP address.</span>
-                    </div>
                 </div>
             )}
 
-            {/* ─────────────────────────────────────── */}
-            {/* TAB: QUESTIONS                          */}
-            {/* ─────────────────────────────────────── */}
-            {activeTab === 'questions' && (
-                <div className="animate-fade-in-up">
-                    {/* Search + Tip */}
-                    <div className="space-y-4 mb-6">
-                        <div className="relative">
-                            <Command className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                            <input
-                                type="text"
-                                placeholder="Search fields (e.g. 'Age', 'Experience')..."
-                                value={questionSearch}
-                                onChange={(e) => setQuestionSearch(e.target.value)}
-                                className="w-full bg-white/[0.03] border border-white/10 rounded-xl pl-10 pr-4 py-3 text-sm text-white placeholder:text-slate-500 focus:border-amber-500/50 focus:ring-4 focus:ring-amber-500/10 outline-none transition-all"
-                            />
-                        </div>
+            {/* SECURITY NOTE */}
+            <div className="p-3 rounded-lg bg-red-500/5 border border-red-500/10 text-[10px] text-red-200/60 leading-relaxed font-mono flex items-start gap-2 mb-6">
+                <ShieldCheck className="w-3 h-3 text-red-400 mt-0.5 flex-shrink-0" />
+                <span>To maintain account integrity, avoid exceeding 100 responses per hour per IP address.</span>
+            </div>
 
-                        <div className="p-3 rounded-lg bg-amber-500/5 border border-amber-500/10 flex items-start gap-3">
-                            <Settings className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
-                            <p className="text-xs text-amber-200/70 leading-relaxed">
-                                Adjust the weightage percentages to control how responses are distributed. Totals should equal 100% for each field.
-                            </p>
-                        </div>
-                    </div>
-
-                    {/* Question Cards  */}
-                    <div className="space-y-4">
-                        {filteredQuestions.map((q, idx) => (
-                            <QuestionCard
-                                key={q.id}
-                                index={idx}
-                                question={q}
-                                onUpdate={handleQuestionUpdate}
-                                customResponse={customResponses[q.id]}
-                                onCustomResponseChange={(val) => handleCustomResponseChange(q.id, val)}
-                            />
-                        ))}
-                    </div>
-
-                    {filteredQuestions.length === 0 && questionSearch && (
-                        <div className="text-center py-16 text-slate-500">
-                            <p className="text-sm">No fields matching "{questionSearch}"</p>
-                        </div>
-                    )}
-
-                    {/* NEXT STEP CTA */}
-                    <div className="mt-8 flex flex-col items-center gap-3 animate-fade-in-up">
-                        <div className="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-                        <p className="text-xs text-slate-500 font-medium">Done adjusting weights?</p>
-                        <button
-                            onClick={() => setActiveTab('settings')}
-                            className="group flex items-center gap-3 px-8 py-4 rounded-xl bg-gradient-to-r from-amber-500/10 to-amber-600/10 border border-amber-500/20 hover:border-amber-500/40 text-amber-400 hover:text-amber-300 font-bold text-sm uppercase tracking-wider transition-all duration-200 active:scale-95 shadow-lg shadow-amber-500/5 hover:shadow-amber-500/15"
-                        >
-                            <Settings className="w-4 h-4" />
-                            Next: Configure Settings
-                            <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                        </button>
-                        <p className="text-[10px] text-slate-600">Set response count, speed & names</p>
-                    </div>
-                </div>
-            )}
-
-            {/* ─────────────────────────────────────── */}
-            {/* TAB: AI ASSISTANT                       */}
-            {/* ─────────────────────────────────────── */}
-            {activeTab === 'ai' && hasAITab && (
-                <div className="animate-fade-in-up">
-                    <div className={`glass-panel p-6 rounded-xl space-y-6 border-l-2 ${parsingError ? 'border-red-500' : hasRequiredAI ? 'border-amber-500/50' : 'border-emerald-500/50'
-                        }`}>
-                        {/* HEADER */}
-                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                            <div>
-                                <h3 className="text-base font-bold text-white mb-1 flex items-center gap-2">
-                                    <Sparkles className="w-4 h-4 text-emerald-500" />
-                                    AI-Generated Answers
-                                </h3>
-                                <p className="text-xs text-slate-400">
-                                    Need unique text responses? Let ChatGPT generate them for you.
-                                </p>
-                            </div>
-                            {hasRequiredAI && (
-                                <span className="text-[10px] text-amber-500 bg-amber-500/10 px-3 py-1.5 rounded-lg border border-amber-500/20 font-bold uppercase tracking-wider flex-shrink-0 animate-pulse">
-                                    Required
-                                </span>
-                            )}
-                        </div>
-
-                        {/* STEPS */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {/* Instructions */}
-                            <div className="space-y-4">
-                                <div className="space-y-3">
-                                    <div className="flex items-start gap-3">
-                                        <div className="w-6 h-6 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center flex-shrink-0 mt-0.5">
-                                            <span className="text-[10px] font-bold text-emerald-400">1</span>
-                                        </div>
-                                        <p className="text-sm text-slate-300">
-                                            Click the button below to copy a ready-made prompt and open ChatGPT.
-                                        </p>
-                                    </div>
-                                    <div className="flex items-start gap-3">
-                                        <div className="w-6 h-6 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center flex-shrink-0 mt-0.5">
-                                            <span className="text-[10px] font-bold text-emerald-400">2</span>
-                                        </div>
-                                        <p className="text-sm text-slate-300">
-                                            Paste the prompt in ChatGPT, copy its JSON response, and paste it on the right.
-                                        </p>
-                                    </div>
-                                    <div className="flex items-start gap-3">
-                                        <div className="w-6 h-6 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center flex-shrink-0 mt-0.5">
-                                            <span className="text-[10px] font-bold text-emerald-400">3</span>
-                                        </div>
-                                        <p className="text-sm text-slate-300">
-                                            Hit "Apply AI Data" and you're done!
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <button
-                                    onClick={() => {
-                                        const prompt = generateAIPrompt(analysis.title, analysis.description, analysis.questions, targetCount);
-                                        navigator.clipboard.writeText(prompt);
-                                        window.open('https://chatgpt.com', '_blank');
-                                        alert("Prompt copied to clipboard! Paste it in ChatGPT.");
-                                    }}
-                                    className="w-full gold-button px-6 py-3.5 rounded-xl text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 active:scale-95 transition-all"
-                                >
-                                    <ExternalLink className="w-4 h-4" />
-                                    Copy Prompt & Open ChatGPT
-                                </button>
-
-                                <button
-                                    onClick={handleAIInject}
-                                    className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs uppercase tracking-widest transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2 border border-emerald-400/20"
-                                >
-                                    <Activity className="w-4 h-4" />
-                                    Apply AI Data
-                                </button>
-                            </div>
-                            {/* Textarea */}
-                            <div className="relative">
-                                <textarea
-                                    value={aiPromptData}
-                                    onChange={(e) => {
-                                        setAiPromptData(e.target.value);
-                                        if (parsingError) setParsingError(null);
-                                    }}
-                                    placeholder='Paste ChatGPT JSON response here...'
-                                    className={`w-full h-full min-h-[250px] bg-[#020617] border-2 rounded-2xl p-4 text-xs text-white font-mono focus:outline-none transition-all resize-none shadow-inner ${parsingError ? 'border-red-500/50 focus:border-red-500' : 'border-white/5 focus:border-emerald-500/50'
-                                        }`}
-                                />
-                                {parsingError && (
-                                    <div className="absolute bottom-4 right-4 text-[10px] text-red-400 font-bold bg-black/90 px-3 py-1.5 rounded-lg backdrop-blur border border-red-500/30 shadow-xl max-w-[80%] truncate">
-                                        {parsingError}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* ─────────────────────────────────────── */}
-            {/* STICKY LAUNCH BAR                       */}
-            {/* ─────────────────────────────────────── */}
+            {/* STICKY LAUNCH BAR */}
             <div className="fixed bottom-0 left-0 right-0 z-50 animate-fade-in-up">
                 <div className="max-w-5xl mx-auto px-4 pb-4">
                     <div className="relative overflow-hidden bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl shadow-black/50 px-5 py-3.5 flex items-center justify-between gap-4">
-                        {/* Subtle gradient shine */}
                         <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/[0.03] via-transparent to-amber-500/[0.03] pointer-events-none" />
-
-                        {/* Left: Form info */}
                         <div className="flex items-center gap-3 relative z-10 min-w-0">
                             <div className="hidden sm:flex items-center gap-2 text-xs text-slate-400">
                                 <span className="truncate max-w-[180px] font-medium text-slate-300">{analysis.title}</span>
@@ -635,29 +508,24 @@ const Step2Dashboard = React.memo((props: Step2DashboardProps) => {
                                 <span className="font-mono text-amber-400 font-bold">{isNaN(targetCount) ? '—' : targetCount}</span>
                                 <span>responses</span>
                                 <span className="text-slate-600">·</span>
-                                <span className={`font-mono ${delayMin === 0 ? 'text-fuchsia-400' : delayMin <= 500 ? 'text-amber-400' : 'text-emerald-400'
-                                    }`}>{speedMode === 'auto' ? 'Auto' : speedLabel}</span>
+                                <span className={`font-mono ${delayMin === 0 ? 'text-fuchsia-400' : delayMin <= 500 ? 'text-amber-400' : 'text-emerald-400'}`}>{speedMode === 'auto' ? 'Auto' : speedLabel}</span>
                             </div>
-                            <button
-                                onClick={reset}
-                                className="text-slate-500 hover:text-white transition-colors sm:border-l sm:border-white/5 sm:pl-3"
-                                aria-label="Cancel"
-                            >
+                            <button onClick={reset} className="text-slate-500 hover:text-white transition-colors sm:border-l sm:border-white/5 sm:pl-3">
                                 <RotateCcw className="w-4 h-4" />
                             </button>
                         </div>
-
-                        {/* Right: Launch button */}
                         <div className="relative flex-shrink-0 z-10">
-                            <div className="absolute -inset-2 bg-emerald-500/10 rounded-2xl blur-xl animate-pulse" />
+                            <div className="absolute -inset-2 rounded-2xl blur-xl bg-emerald-500/30 animate-pulse" />
                             <button
                                 onClick={handleCompile}
                                 disabled={isLaunching}
-                                className={`relative group flex items-center gap-2.5 px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-xl shadow-lg border border-emerald-400/20 transition-all duration-200 ${isLaunching ? 'scale-95 brightness-75' : 'hover:scale-[1.02] active:scale-[0.97]'
+                                className={`relative group flex items-center gap-2.5 px-6 py-3 rounded-xl shadow-2xl transition-all duration-300 ${isLaunching
+                                    ? 'scale-95 brightness-75 bg-emerald-600/50 cursor-wait'
+                                    : 'bg-gradient-to-r from-emerald-400 to-teal-500 hover:from-emerald-300 hover:to-teal-400 hover:scale-[1.03] active:scale-[0.97] border border-emerald-300/50 shadow-[0_0_30px_rgba(52,211,153,0.4)]'
                                     }`}
                             >
-                                <Zap className="w-4 h-4 text-white" />
-                                <span className="text-sm font-bold text-white uppercase tracking-wide">Launch Mission</span>
+                                <Zap className="w-5 h-5 text-emerald-950 fill-emerald-950 drop-shadow-md" />
+                                <span className="text-sm tracking-wider font-extrabold uppercase text-emerald-950 drop-shadow-md">Launch Mission</span>
                             </button>
                         </div>
                     </div>
