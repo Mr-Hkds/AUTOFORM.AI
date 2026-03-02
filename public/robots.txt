@@ -1,6 +1,6 @@
-# robots.txt for AutoForm.AI
+# robots.txt for Zerviq
 User-agent: *
 Allow: /
 Disallow: /api/
 
-Sitemap: https://autoform-ai.vercel.app/sitemap.xml
+Sitemap: https://zerviq.vercel.app/sitemap.xml
